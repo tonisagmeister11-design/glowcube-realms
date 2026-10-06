@@ -1,0 +1,1 @@
+{"type":"glowcube_realms:grand","biomes":"#minecraft:has_structure/pillager_outpost","kind":"fortress","spawn_overrides":{"monster":{"bounding_box":"full","spawns":[{"type":"minecraft:pillager","count":1,"weight":1}]}},"step":"surface_structures","terrain_adaptation":"none"}

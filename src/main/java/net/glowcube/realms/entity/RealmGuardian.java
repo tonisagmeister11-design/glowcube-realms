@@ -133,7 +133,9 @@ public class RealmGuardian extends PathfinderMob implements RangedAttackMob {
 
 	@Override
 	public void performRangedAttack(LivingEntity target, float power) {
-		ItemStack bow = this.getItemInHand(ProjectileUtil.getWeaponHoldingHand(this, Items.BOW));
+		// the arrow needs the real launcher stack (bow or crossbow); an empty hand crashes the arrow constructor
+		ItemStack bow = this.getMainHandItem();
+		if (!(bow.getItem() instanceof net.minecraft.world.item.ProjectileWeaponItem)) bow = new ItemStack(Items.BOW);
 		ItemStack ammo = new ItemStack(Items.ARROW);
 		AbstractArrow arrow = ProjectileUtil.getMobArrow(this, ammo, power, bow);
 		arrow.setBaseDamage(3.5 + power * 2.0);
@@ -144,7 +146,7 @@ public class RealmGuardian extends PathfinderMob implements RangedAttackMob {
 		if (this.level() instanceof ServerLevel serverLevel) {
 			Projectile.spawnProjectileUsingShoot(arrow, serverLevel, ammo, xd, yd + dist * 0.2F, zd, 1.7F, 4.0F);
 		}
-		this.playSound(SoundEvents.ARROW_SHOOT, 1.0F, 1.0F / (this.getRandom().nextFloat() * 0.4F + 0.8F));
+		this.playSound(bow.is(Items.CROSSBOW) ? SoundEvents.CROSSBOW_SHOOT : SoundEvents.ARROW_SHOOT, 1.0F, 1.0F / (this.getRandom().nextFloat() * 0.4F + 0.8F));
 	}
 
 	@Override

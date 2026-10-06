@@ -22,6 +22,10 @@ public final class ModWorldgen {
 			() -> ArenaStructure.CODEC);
 	public static final StructurePieceType ARENA_PIECE = Registry.register(BuiltInRegistries.STRUCTURE_PIECE, GlowcubeRealms.id("arena_piece"),
 			(StructurePieceType.ContextlessType) ArenaPiece::new);
+	public static final StructureType<net.glowcube.realms.world.structure.GrandStructure> GRAND = Registry.register(BuiltInRegistries.STRUCTURE_TYPE,
+			GlowcubeRealms.id("grand"), () -> net.glowcube.realms.world.structure.GrandStructure.CODEC);
+	public static final StructurePieceType GRAND_PIECE = Registry.register(BuiltInRegistries.STRUCTURE_PIECE, GlowcubeRealms.id("grand_piece"),
+			(StructurePieceType.ContextlessType) net.glowcube.realms.world.structure.GrandPiece::new);
 
 	public static void init() {
 		Registry.register(BuiltInRegistries.FEATURE_TYPE, GlowcubeRealms.id("crystal_spike"), CrystalSpikeFeature.CODEC);

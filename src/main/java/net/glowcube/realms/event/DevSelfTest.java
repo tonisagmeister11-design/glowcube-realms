@@ -107,6 +107,29 @@ public final class DevSelfTest {
 						lvl.getEntitiesOfClass(net.glowcube.realms.entity.RealmGuardian.class, box).size());
 				return;
 			}
+			if (cmd.startsWith("spawncheck ")) {
+				// "spawncheck <dim> <x> <z> <entity>...": counts standing spots around x/z where each mob passes its natural spawn rules
+				String[] a = cmd.split(" ");
+				net.minecraft.server.level.ServerLevel lvl = server.getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, net.minecraft.resources.Identifier.parse(a[1])));
+				int x0 = Integer.parseInt(a[2]), z0 = Integer.parseInt(a[3]);
+				for (int k = 4; k < a.length; k++) {
+					net.minecraft.world.entity.EntityType<?> type = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getValue(net.minecraft.resources.Identifier.parse(a[k]));
+					int spots = 0, ok = 0;
+					net.minecraft.util.RandomSource rnd = net.minecraft.util.RandomSource.create(k);
+					for (int i = 0; i < 400; i++) {
+						int x = x0 + rnd.nextInt(97) - 48, z = z0 + rnd.nextInt(97) - 48;
+						for (int y = lvl.getMaxY() - 1; y > lvl.getMinY(); y--) {
+							net.minecraft.core.BlockPos p = new net.minecraft.core.BlockPos(x, y, z);
+							if (!lvl.getBlockState(p).isAir() || !lvl.getBlockState(p.below()).isSolidRender()) continue;
+							spots++;
+							if (net.minecraft.world.entity.SpawnPlacements.isSpawnPositionOk(type, lvl, p)
+									&& net.minecraft.world.entity.SpawnPlacements.checkSpawnRules(type, lvl, net.minecraft.world.entity.EntitySpawnReason.NATURAL, p, rnd)) ok++;
+						}
+					}
+					GlowcubeRealms.LOGGER.info("[SelfTest] spawncheck {} {} -> {} of {} spots valid", a[1], a[k], ok, spots);
+				}
+				return;
+			}
 			if (cmd.startsWith("count ")) {
 				// "count <dim>": logs mod entities per type in that dimension
 				String[] a = cmd.split(" ");

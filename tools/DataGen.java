@@ -44,6 +44,7 @@ public class DataGen {
 		splashes();
 		Update2.all();
 		Update3.all();
+		Update4.all();
 		flushTags();
 		System.out.println("Data written.");
 	}
@@ -693,23 +694,23 @@ public class DataGen {
 		// ---- biomes
 		biome("lumen_meadows", "#8fd6ff", "#c8b8ff", "#46dcc0", "#5cf2dd", 0.7, true,
 				new String[]{"glowcrystal_ore"}, new String[]{"lumen_blooms", "aurora_trees_sparse", "crystal_spikes_rare"},
-				spawn("monster", NS + ":crystal_golem", 40, 1, 1), spawn("creature", NS + ":glow_wisp", 60, 2, 4),
+				spawn("monster", NS + ":crystal_golem", 100, 1, 2), spawn("creature", NS + ":glow_wisp", 60, 2, 4),
 				spawn("creature", NS + ":glimmer_deer", 50, 2, 4), spawn("creature", NS + ":cloud_bunny", 60, 2, 3));
 		biome("aurora_forest", "#a0c8ff", "#e0b0ff", "#b558d4", "#d681ea", 0.8, true,
 				new String[]{"glowcrystal_ore"}, new String[]{"giant_aurora_trees", "aurora_trees_dense", "lumen_blooms"},
-				spawn("monster", NS + ":crystal_golem", 30, 1, 1), spawn("creature", NS + ":glow_wisp", 90, 2, 5),
+				spawn("monster", NS + ":crystal_golem", 70, 1, 2), spawn("creature", NS + ":glow_wisp", 90, 2, 5),
 				spawn("creature", NS + ":glimmer_deer", 70, 2, 4));
 		biome("crystal_peaks", "#b8f0ff", "#ffffff", "#7ff5da", "#9fe8ff", 0.5, true,
 				new String[]{"glowcrystal_ore"}, new String[]{"crystal_spikes_dense", "lumen_blooms"},
-				spawn("monster", NS + ":crystal_golem", 80, 1, 2), spawn("creature", NS + ":glow_wisp", 40, 1, 3),
+				spawn("monster", NS + ":crystal_golem", 120, 1, 3), spawn("creature", NS + ":glow_wisp", 40, 1, 3),
 				spawn("creature", NS + ":cloud_bunny", 50, 2, 4));
 		biome("umbral_caverns", "#1a0f2e", "#1a0f2e", "#15504f", "#27857a", 0.0, false,
 				new String[]{"voidshard_ore"}, new String[]{"voidblooms", "void_stalactites", "void_spikes"},
-				spawn("monster", NS + ":shade_crawler", 100, 1, 3),
+				spawn("monster", NS + ":shade_crawler", 100, 1, 3), spawn("monster", "minecraft:skeleton", 50, 1, 3), spawn("monster", "minecraft:spider", 40, 1, 2), spawn("monster", "minecraft:zombie", 50, 2, 4), spawn("monster", "minecraft:cave_spider", 20, 1, 3), spawn("monster", "minecraft:enderman", 8, 1, 1),
 				spawn("creature", NS + ":shade_toad", 60, 2, 4), spawn("ambient", NS + ":lantern_bug", 80, 2, 5));
 		biome("shadecap_forest", "#2a1440", "#2a1440", "#58287e", "#70369a", 0.0, false,
 				new String[]{"voidshard_ore"}, new String[]{"huge_shadecaps", "voidblooms", "void_stalactites"},
-				spawn("monster", NS + ":shade_crawler", 70, 1, 2),
+				spawn("monster", NS + ":shade_crawler", 90, 1, 3), spawn("monster", "minecraft:skeleton", 40, 1, 2), spawn("monster", "minecraft:spider", 50, 1, 2), spawn("monster", "minecraft:witch", 5, 1, 1),
 				spawn("creature", NS + ":shade_toad", 50, 2, 3), spawn("ambient", NS + ":lantern_bug", 100, 3, 6));
 		biome("void_rift", "#0a0418", "#0a0418", "#2a0a4a", "#7225b8", 0.0, false,
 				new String[]{"voidshard_ore"}, new String[]{"void_spikes", "void_stalactites"},
@@ -1410,6 +1411,55 @@ public class DataGen {
 					write(MC_DATA.resolve("worldgen/structure/village_" + v + ".json"), json);
 				}
 			}
+		}
+	}
+
+	// ================================================================ UPDATE 4: grand structures
+	static class Update4 {
+		static final Path MC = Path.of("src/main/resources/data/minecraft");
+
+		static void all() throws IOException {
+			grand("desert_pyramid", "pyramid", "{}");
+			grand("jungle_pyramid", "jungle", "{}");
+			grand("igloo", "igloo", "{}");
+			grand("swamp_hut", "witch", "{\"creature\":{\"bounding_box\":\"piece\",\"spawns\":[{\"type\":\"minecraft:cat\",\"count\":1,\"weight\":1}]},"
+					+ "\"monster\":{\"bounding_box\":\"piece\",\"spawns\":[{\"type\":\"minecraft:witch\",\"count\":1,\"weight\":1}]}}");
+			grand("pillager_outpost", "fortress", "{\"monster\":{\"bounding_box\":\"full\",\"spawns\":[{\"type\":\"minecraft:pillager\",\"count\":1,\"weight\":1}]}}");
+			treasure("grand_pyramid_treasure", "minecraft:chests/desert_pyramid", new Object[][]{{"minecraft:gold_ingot", 20, 3, 9}, {"minecraft:diamond", 8, 1, 3},
+					{"minecraft:emerald", 10, 2, 6}, {"minecraft:golden_apple", 6, 1, 2}, {"minecraft:enchanted_golden_apple", 1, 1, 1}, {"minecraft:gold_block", 3, 1, 2},
+					{"minecraft:lapis_lazuli", 10, 4, 12}, {NS + ":glow_shard", 8, 2, 5}, {NS + ":starmetal_ingot", 4, 1, 2}, {"minecraft:dune_armor_trim_smithing_template", 2, 1, 1}});
+			treasure("jungle_treasure", "minecraft:chests/jungle_temple", new Object[][]{{"minecraft:emerald", 18, 3, 9}, {"minecraft:diamond", 8, 1, 3},
+					{"minecraft:gold_ingot", 14, 2, 7}, {"minecraft:emerald_block", 3, 1, 2}, {"minecraft:golden_apple", 5, 1, 2}, {"minecraft:enchanted_golden_apple", 1, 1, 1},
+					{"minecraft:cocoa_beans", 8, 3, 8}, {NS + ":void_shard", 6, 1, 4}, {"minecraft:wild_armor_trim_smithing_template", 2, 1, 1}});
+			treasure("witch_manor", null, new Object[][]{{"minecraft:glass_bottle", 15, 2, 6}, {"minecraft:nether_wart", 12, 2, 6}, {"minecraft:redstone", 12, 3, 8},
+					{"minecraft:glowstone_dust", 12, 3, 8}, {"minecraft:spider_eye", 10, 1, 4}, {"minecraft:fermented_spider_eye", 6, 1, 2}, {"minecraft:sugar", 10, 2, 6},
+					{"minecraft:gunpowder", 8, 1, 4}, {"minecraft:blaze_powder", 4, 1, 2}, {"minecraft:rabbit_foot", 3, 1, 1}, {"minecraft:magma_cream", 5, 1, 3},
+					{"minecraft:golden_carrot", 5, 1, 3}, {"minecraft:experience_bottle", 4, 1, 3}, {NS + ":glow_jelly", 6, 1, 3}});
+			treasure("igloo_lab", "minecraft:chests/igloo_chest", new Object[][]{{"minecraft:golden_apple", 10, 1, 2}, {"minecraft:emerald", 8, 1, 4},
+					{"minecraft:book", 8, 1, 3}, {"minecraft:glass_bottle", 8, 1, 4}, {"minecraft:diamond", 3, 1, 2}, {"minecraft:snowball", 10, 4, 16},
+					{"minecraft:blue_ice", 6, 2, 6}, {"minecraft:experience_bottle", 4, 1, 3}});
+			treasure("fortress_armory", "minecraft:chests/pillager_outpost", new Object[][]{{"minecraft:crossbow", 8, 1, 1}, {"minecraft:arrow", 15, 6, 20},
+					{"minecraft:iron_ingot", 12, 2, 7}, {"minecraft:iron_chestplate", 4, 1, 1}, {"minecraft:iron_helmet", 4, 1, 1}, {"minecraft:emerald", 10, 2, 6},
+					{"minecraft:dark_oak_log", 10, 2, 8}, {"minecraft:goat_horn", 2, 1, 1}, {"minecraft:sentry_armor_trim_smithing_template", 2, 1, 1}});
+		}
+
+		/** Keeps the vanilla id, biomes and spacing, but builds the bigger version. */
+		static void grand(String id, String kind, String spawnOverrides) throws IOException {
+			String biomes = "#minecraft:has_structure/" + (id.equals("jungle_pyramid") ? "jungle_temple" : id);
+			write(MC.resolve("worldgen/structure/" + id + ".json"), "{\"type\":\"" + NS + ":grand\",\"biomes\":\"" + biomes + "\",\"kind\":\"" + kind
+					+ "\",\"spawn_overrides\":" + spawnOverrides + ",\"step\":\"surface_structures\",\"terrain_adaptation\":\"none\"}");
+		}
+
+		/** Own treasure pool plus (optionally) one roll of a vanilla chest table. */
+		static void treasure(String name, String vanilla, Object[][] entries) throws IOException {
+			List<String> list = new ArrayList<>();
+			for (Object[] e : entries) {
+				list.add("{\"type\":\"minecraft:item\",\"modifier\":{\"type\":\"minecraft:set_count\",\"count\":{\"type\":\"minecraft:uniform\",\"max\":" + e[3] + ",\"min\":" + e[2]
+						+ "}},\"name\":\"" + e[0] + "\",\"weight\":" + e[1] + "}");
+			}
+			String pools = "{\"entries\":[" + String.join(",", list) + "],\"rolls\":{\"type\":\"minecraft:uniform\",\"max\":7,\"min\":4}}";
+			if (vanilla != null) pools += ",{\"entries\":[{\"type\":\"minecraft:loot_table\",\"value\":\"" + vanilla + "\"}],\"rolls\":1}";
+			write(DATA.resolve("loot_table/chests/" + name + ".json"), "{\"type\":\"minecraft:chest\",\"pools\":[" + pools + "],\"random_sequence\":\"" + NS + ":chests/" + name + "\"}");
 		}
 	}
 }

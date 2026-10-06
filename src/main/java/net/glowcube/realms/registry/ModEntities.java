@@ -135,7 +135,7 @@ public final class ModEntities {
 		net.minecraft.world.entity.SpawnPlacements.register(SCULK_STALKER, net.minecraft.world.entity.SpawnPlacementTypes.ON_GROUND,
 				net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, net.minecraft.world.entity.monster.Monster::checkMonsterSpawnRules);
 		net.minecraft.world.entity.SpawnPlacements.register(CRYSTAL_GOLEM, net.minecraft.world.entity.SpawnPlacementTypes.ON_GROUND,
-				net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, net.minecraft.world.entity.monster.Monster::checkMonsterSpawnRules);
+				net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, net.minecraft.world.entity.monster.Monster::checkAnyLightMonsterSpawnRules);
 		net.minecraft.world.entity.SpawnPlacements.register(SHADE_CRAWLER, net.minecraft.world.entity.SpawnPlacementTypes.ON_GROUND,
 				net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, net.minecraft.world.entity.monster.Monster::checkAnyLightMonsterSpawnRules);
 		net.minecraft.world.entity.SpawnPlacements.register(GLOW_WISP, net.minecraft.world.entity.SpawnPlacementTypes.NO_RESTRICTIONS,
