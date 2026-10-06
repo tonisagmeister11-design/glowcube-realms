@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","key":{"S":"minecraft:string","X":"glowcube_realms:salamander_scale","G":"minecraft:gold_ingot"},"pattern":[" S ","XGX"," X "],"result":{"count":1,"id":"glowcube_realms:salamander_charm"}}

@@ -43,6 +43,7 @@ public class DataGen {
 		worldgen();
 		splashes();
 		Update2.all();
+		Update3.all();
 		flushTags();
 		System.out.println("Data written.");
 	}
@@ -273,6 +274,7 @@ public class DataGen {
 			t.put("biome." + NS + "." + bio[0], new String[]{bio[1], bio[2]});
 		}
 		Update2.lang(t);
+		Update3.lang(t);
 		StringBuilder en = new StringBuilder("{\n"), de = new StringBuilder("{\n");
 		int n = 0;
 		for (Map.Entry<String, String[]> entry : t.entrySet()) {
@@ -691,19 +693,24 @@ public class DataGen {
 		// ---- biomes
 		biome("lumen_meadows", "#8fd6ff", "#c8b8ff", "#46dcc0", "#5cf2dd", 0.7, true,
 				new String[]{"glowcrystal_ore"}, new String[]{"lumen_blooms", "aurora_trees_sparse", "crystal_spikes_rare"},
-				spawn("monster", NS + ":crystal_golem", 40, 1, 1), spawn("creature", NS + ":glow_wisp", 60, 2, 4));
+				spawn("monster", NS + ":crystal_golem", 40, 1, 1), spawn("creature", NS + ":glow_wisp", 60, 2, 4),
+				spawn("creature", NS + ":glimmer_deer", 50, 2, 4), spawn("creature", NS + ":cloud_bunny", 60, 2, 3));
 		biome("aurora_forest", "#a0c8ff", "#e0b0ff", "#b558d4", "#d681ea", 0.8, true,
 				new String[]{"glowcrystal_ore"}, new String[]{"giant_aurora_trees", "aurora_trees_dense", "lumen_blooms"},
-				spawn("monster", NS + ":crystal_golem", 30, 1, 1), spawn("creature", NS + ":glow_wisp", 90, 2, 5));
+				spawn("monster", NS + ":crystal_golem", 30, 1, 1), spawn("creature", NS + ":glow_wisp", 90, 2, 5),
+				spawn("creature", NS + ":glimmer_deer", 70, 2, 4));
 		biome("crystal_peaks", "#b8f0ff", "#ffffff", "#7ff5da", "#9fe8ff", 0.5, true,
 				new String[]{"glowcrystal_ore"}, new String[]{"crystal_spikes_dense", "lumen_blooms"},
-				spawn("monster", NS + ":crystal_golem", 80, 1, 2), spawn("creature", NS + ":glow_wisp", 40, 1, 3));
+				spawn("monster", NS + ":crystal_golem", 80, 1, 2), spawn("creature", NS + ":glow_wisp", 40, 1, 3),
+				spawn("creature", NS + ":cloud_bunny", 50, 2, 4));
 		biome("umbral_caverns", "#1a0f2e", "#1a0f2e", "#15504f", "#27857a", 0.0, false,
 				new String[]{"voidshard_ore"}, new String[]{"voidblooms", "void_stalactites", "void_spikes"},
-				spawn("monster", NS + ":shade_crawler", 100, 1, 3));
+				spawn("monster", NS + ":shade_crawler", 100, 1, 3),
+				spawn("creature", NS + ":shade_toad", 60, 2, 4), spawn("ambient", NS + ":lantern_bug", 80, 2, 5));
 		biome("shadecap_forest", "#2a1440", "#2a1440", "#58287e", "#70369a", 0.0, false,
 				new String[]{"voidshard_ore"}, new String[]{"huge_shadecaps", "voidblooms", "void_stalactites"},
-				spawn("monster", NS + ":shade_crawler", 70, 1, 2));
+				spawn("monster", NS + ":shade_crawler", 70, 1, 2),
+				spawn("creature", NS + ":shade_toad", 50, 2, 3), spawn("ambient", NS + ":lantern_bug", 100, 3, 6));
 		biome("void_rift", "#0a0418", "#0a0418", "#2a0a4a", "#7225b8", 0.0, false,
 				new String[]{"voidshard_ore"}, new String[]{"void_spikes", "void_stalactites"},
 				spawn("monster", NS + ":shade_crawler", 120, 2, 4), spawn("monster", "minecraft:enderman", 20, 1, 2));
@@ -1133,6 +1140,276 @@ public class DataGen {
 			structureSet("frozen_crypt", 32, 12, 8812345);
 			structureSet("storm_aerie", 26, 10, 5550123);
 			structureSet("hollow_crypt", 22, 8, 7766551);
+		}
+	}
+
+	// ================================================================ UPDATE 3: Sculk Realm, creatures, bigger villages
+	static class Update3 {
+		static final String[] GENERATED = {"sculk_key", "echo_crystal", "echo_heart", "echo_horn", "glimmer_venison", "cooked_glimmer_venison",
+				"glimmer_antler", "cloud_fluff", "cloud_bottle", "toad_leg", "glow_jelly", "snail_shell", "sculk_slime", "salamander_scale",
+				"salamander_charm", "void_jelly", "echo_warden_spawn_egg", "sculk_stalker_spawn_egg", "glimmer_deer_spawn_egg", "cloud_bunny_spawn_egg",
+				"shade_toad_spawn_egg", "lantern_bug_spawn_egg", "sculk_snail_spawn_egg", "ember_salamander_spawn_egg", "void_jelly_spawn_egg"};
+
+		static void all() throws IOException {
+			assets();
+			loot();
+			recipes();
+			tags();
+			worldgen();
+			villages();
+		}
+
+		static void cube(String b) throws IOException {
+			write(ASSETS.resolve("models/block/" + b + ".json"), "{\"parent\":\"minecraft:block/cube_all\",\"textures\":{\"all\":\"" + NS + ":block/" + b + "\"}}");
+			write(ASSETS.resolve("blockstates/" + b + ".json"), "{\"variants\":{\"\":{\"model\":\"" + NS + ":block/" + b + "\"}}}");
+			blockItem(b);
+		}
+
+		static void assets() throws IOException {
+			cube("echo_planks");
+			cube("echo_crystal_ore");
+			cube("echo_crystal_block");
+			write(ASSETS.resolve("models/block/echo_leaves.json"), "{\"parent\":\"minecraft:block/leaves\",\"textures\":{\"all\":\"" + NS + ":block/echo_leaves\"}}");
+			write(ASSETS.resolve("blockstates/echo_leaves.json"), "{\"variants\":{\"\":{\"model\":\"" + NS + ":block/echo_leaves\"}}}");
+			blockItem("echo_leaves");
+			write(ASSETS.resolve("models/block/echo_log.json"), "{\"parent\":\"minecraft:block/cube_column\",\"textures\":{\"end\":\"" + NS + ":block/echo_log_top\",\"side\":\"" + NS + ":block/echo_log\"}}");
+			write(ASSETS.resolve("models/block/echo_log_horizontal.json"), "{\"parent\":\"minecraft:block/cube_column_horizontal\",\"textures\":{\"end\":\"" + NS
+					+ ":block/echo_log_top\",\"side\":\"" + NS + ":block/echo_log\"}}");
+			write(ASSETS.resolve("blockstates/echo_log.json"), "{\"variants\":{\"axis=x\":{\"model\":\"" + NS + ":block/echo_log_horizontal\",\"x\":90,\"y\":90},"
+					+ "\"axis=y\":{\"model\":\"" + NS + ":block/echo_log\"},\"axis=z\":{\"model\":\"" + NS + ":block/echo_log_horizontal\",\"x\":90}}}");
+			blockItem("echo_log");
+			write(ASSETS.resolve("models/block/echo_bloom.json"), "{\"parent\":\"minecraft:block/cross\",\"textures\":{\"cross\":\"" + NS + ":block/echo_bloom\"}}");
+			write(ASSETS.resolve("blockstates/echo_bloom.json"), "{\"variants\":{\"\":{\"model\":\"" + NS + ":block/echo_bloom\"}}}");
+			write(ASSETS.resolve("models/item/echo_bloom.json"), "{\"parent\":\"minecraft:item/generated\",\"textures\":{\"layer0\":\"" + NS + ":block/echo_bloom\"}}");
+			itemDef("echo_bloom", NS + ":item/echo_bloom");
+			write(ASSETS.resolve("models/block/sculk_keyhole.json"), "{\"parent\":\"minecraft:block/cube_all\",\"textures\":{\"all\":\"" + NS + ":block/sculk_keyhole\"}}");
+			write(ASSETS.resolve("models/block/sculk_keyhole_filled.json"), "{\"parent\":\"minecraft:block/cube_all\",\"textures\":{\"all\":\"" + NS + ":block/sculk_keyhole_filled\"}}");
+			write(ASSETS.resolve("blockstates/sculk_keyhole.json"), "{\"variants\":{\"lit=false\":{\"model\":\"" + NS + ":block/sculk_keyhole\"},\"lit=true\":{\"model\":\""
+					+ NS + ":block/sculk_keyhole_filled\"}}}");
+			blockItem("sculk_keyhole");
+			String p = "sculk_portal";
+			String tex = "\"textures\":{\"particle\":\"" + NS + ":block/" + p + "\",\"portal\":\"" + NS + ":block/" + p + "\"}";
+			write(ASSETS.resolve("models/block/" + p + "_ns.json"), "{" + tex + ",\"elements\":[{\"from\":[0,0,6],\"to\":[16,16,10],\"faces\":{\"north\":{\"uv\":[0,0,16,16],\"texture\":\"#portal\"},\"south\":{\"uv\":[0,0,16,16],\"texture\":\"#portal\"}}}]}");
+			write(ASSETS.resolve("models/block/" + p + "_ew.json"), "{" + tex + ",\"elements\":[{\"from\":[6,0,0],\"to\":[10,16,16],\"faces\":{\"east\":{\"uv\":[0,0,16,16],\"texture\":\"#portal\"},\"west\":{\"uv\":[0,0,16,16],\"texture\":\"#portal\"}}}]}");
+			write(ASSETS.resolve("blockstates/" + p + ".json"), "{\"variants\":{\"axis=x\":{\"model\":\"" + NS + ":block/" + p + "_ns\"},\"axis=z\":{\"model\":\"" + NS + ":block/" + p + "_ew\"}}}");
+			for (String i : GENERATED) {
+				write(ASSETS.resolve("models/item/" + i + ".json"), "{\"parent\":\"minecraft:item/generated\",\"textures\":{\"layer0\":\"" + NS + ":item/" + i + "\"}}");
+				itemDef(i, NS + ":item/" + i);
+			}
+			write(ASSETS.resolve("models/item/sonic_blade.json"), "{\"parent\":\"minecraft:item/handheld\",\"textures\":{\"layer0\":\"" + NS + ":item/sonic_blade\"}}");
+			itemDef("sonic_blade", NS + ":item/sonic_blade");
+		}
+
+		static void lang(Map<String, String[]> t) {
+			b(t, "sculk_portal", "Sculk Portal", "Skulk-Portal");
+			b(t, "sculk_keyhole", "Sculk Keyhole", "Skulk-Schlüsselloch");
+			b(t, "echo_log", "Echo Log", "Echostamm");
+			b(t, "echo_planks", "Echo Planks", "Echoholzbretter");
+			b(t, "echo_leaves", "Echo Leaves", "Echoblätter");
+			b(t, "echo_bloom", "Echo Bloom", "Echoblüte");
+			b(t, "echo_crystal_ore", "Echo Crystal Ore", "Echokristallerz");
+			b(t, "echo_crystal_block", "Block of Echo Crystal", "Echokristallblock");
+			i(t, "sculk_key", "Sculk Key", "Skulk-Schlüssel", "Use on the keyhole of a sculk gate to open the Sculk Realm.",
+					"Am Schlüsselloch eines Skulk-Tors benutzen, um die Skulk-Dimension zu öffnen.");
+			i(t, "echo_crystal", "Echo Crystal", "Echokristall", null, null);
+			i(t, "echo_heart", "Echo Heart", "Echoherz", "Dropped by the Echo Warden.", "Droppt vom Echo Warden.");
+			i(t, "sonic_blade", "Sonic Blade", "Schallklinge", "Right-click: sonic boom that ignores armor.", "Rechtsklick: Schallexplosion, die Rüstung ignoriert.");
+			i(t, "echo_horn", "Echo Horn", "Echohorn", "Right-click: shriek - weakens and reveals enemies.", "Rechtsklick: Schrei - schwächt und markiert Gegner.");
+			i(t, "glimmer_venison", "Raw Glimmer Venison", "Rohes Glimmerhirsch-Fleisch", "Speed.", "Tempo.");
+			i(t, "cooked_glimmer_venison", "Cooked Glimmer Venison", "Gebratenes Glimmerhirsch-Fleisch", "Speed and regeneration.", "Tempo und Regeneration.");
+			i(t, "glimmer_antler", "Glimmer Antler", "Glimmergeweih", "Crafting material.", "Crafting-Zutat.");
+			i(t, "cloud_fluff", "Cloud Fluff", "Wolkenflaum", "Crafting material.", "Crafting-Zutat.");
+			i(t, "cloud_bottle", "Cloud in a Bottle", "Wolke in der Flasche", "Right-click: double jump in mid-air.", "Rechtsklick: Doppelsprung in der Luft.");
+			i(t, "toad_leg", "Toad Leg", "Krötenschenkel", "Jump boost.", "Sprungkraft.");
+			i(t, "glow_jelly", "Glow Jelly", "Leuchtgelee", "Night vision.", "Nachtsicht.");
+			i(t, "snail_shell", "Snail Shell", "Schneckenhaus", "Crafting material.", "Crafting-Zutat.");
+			i(t, "sculk_slime", "Sculk Slime", "Skulkschleim", "Crafting material.", "Crafting-Zutat.");
+			i(t, "salamander_scale", "Salamander Scale", "Salamanderschuppe", "Crafting material.", "Crafting-Zutat.");
+			i(t, "salamander_charm", "Salamander Charm", "Salamander-Amulett", "Right-click: fire immunity and strength.", "Rechtsklick: Feuerimmunität und Stärke.");
+			i(t, "void_jelly", "Void Jelly", "Leerengelee", "Slow falling and regeneration.", "Sanfter Fall und Regeneration.");
+			for (String[] e : new String[][]{{"echo_warden", "The Echo Warden", "Der Echo Warden"}, {"sculk_stalker", "Sculk Stalker", "Skulkpirscher"},
+					{"glimmer_deer", "Glimmer Deer", "Glimmerhirsch"}, {"cloud_bunny", "Cloud Bunny", "Wolkenhase"}, {"shade_toad", "Shade Toad", "Schattenkröte"},
+					{"lantern_bug", "Lantern Bug", "Laternenkäfer"}, {"sculk_snail", "Sculk Snail", "Skulkschnecke"}, {"ember_salamander", "Ember Salamander", "Glutsalamander"},
+					{"void_jelly", "Void Jelly", "Leerenqualle"}}) {
+				e(t, e[0], e[1], e[2]);
+				i(t, e[0] + "_spawn_egg", e[1].replace("The ", "") + " Spawn Egg", e[2].replace("Der ", "") + "-Spawn-Ei", null, null);
+			}
+			t.put("boss." + NS + ".echo_warden.awakens", new String[]{"The Echo Warden emerges", "Der Echo Warden erhebt sich"});
+			t.put("boss." + NS + ".echo_warden.subtitle", new String[]{"Guardian of the Sculk Key", "Wächter des Skulk-Schlüssels"});
+			t.put("boss." + NS + ".echo_warden.phase2", new String[]{"It can hear you!", "Er kann dich hören!"});
+			t.put("boss." + NS + ".echo_warden.phase3", new String[]{"Silence...", "Stille..."});
+			t.put("boss." + NS + ".echo_warden.defeated", new String[]{"VICTORY!", "SIEG!"});
+			t.put("message." + NS + ".keyhole_used", new String[]{"This keyhole already holds a key.", "In diesem Schlüsselloch steckt schon ein Schlüssel."});
+			t.put("message." + NS + ".sculk_portal_open", new String[]{"The way to the Sculk Realm is open!", "Der Weg in die Skulk-Dimension ist offen!"});
+			for (String[] bio : new String[][]{{"sculk_plains", "Sculk Plains", "Skulkebene"}, {"echo_forest", "Echo Forest", "Echowald"},
+					{"sculk_spires", "Sculk Spires", "Skulktürme"}}) {
+				t.put("biome." + NS + "." + bio[0], new String[]{bio[1], bio[2]});
+			}
+		}
+
+		static void loot() throws IOException {
+			for (String b : new String[]{"echo_log", "echo_planks", "echo_bloom", "echo_crystal_block"}) {
+				write(DATA.resolve("loot_table/blocks/" + b + ".json"), "{\"type\":\"minecraft:block\",\"pools\":[{\"condition\":{\"type\":\"minecraft:survives_explosion\"},"
+						+ "\"entries\":[{\"type\":\"minecraft:item\",\"name\":\"" + NS + ":" + b + "\"}],\"rolls\":1}],\"random_sequence\":\"" + NS + ":blocks/" + b + "\"}");
+			}
+			silkOr("echo_crystal_ore", NS + ":echo_crystal", 1, 3);
+			write(DATA.resolve("loot_table/blocks/echo_leaves.json"), "{\"type\":\"minecraft:block\",\"pools\":[{\"entries\":[{\"type\":\"minecraft:alternatives\","
+					+ "\"children\":[{\"type\":\"minecraft:item\",\"condition\":\"minecraft:tool/can_silk_touch\",\"name\":\"" + NS + ":echo_leaves\"},"
+					+ "{\"type\":\"minecraft:item\",\"condition\":{\"type\":\"minecraft:random_chance\",\"chance\":0.05},\"name\":\"" + NS + ":echo_crystal\"}]}],\"rolls\":1}],"
+					+ "\"random_sequence\":\"" + NS + ":blocks/echo_leaves\"}");
+			entityLoot("echo_warden", new String[][]{{NS + ":echo_heart", "1", "1"}, {NS + ":echo_crystal", "4", "8"}, {"minecraft:echo_shard", "1", "3"}});
+			entityLoot("sculk_stalker", new String[][]{{NS + ":sculk_slime", "0", "2"}, {NS + ":echo_crystal", "0", "1"}});
+			entityLoot("glimmer_deer", new String[][]{{NS + ":glimmer_venison", "1", "2"}, {NS + ":glimmer_antler", "0", "1"}});
+			entityLoot("cloud_bunny", new String[][]{{NS + ":cloud_fluff", "1", "2"}});
+			entityLoot("shade_toad", new String[][]{{NS + ":toad_leg", "1", "1"}});
+			entityLoot("lantern_bug", new String[][]{{NS + ":glow_jelly", "1", "2"}});
+			entityLoot("sculk_snail", new String[][]{{NS + ":snail_shell", "0", "1"}, {NS + ":sculk_slime", "1", "2"}});
+			entityLoot("ember_salamander", new String[][]{{NS + ":salamander_scale", "1", "2"}});
+			entityLoot("void_jelly", new String[][]{{NS + ":void_jelly", "1", "2"}});
+			// the reliquary always holds the key, plus some treasure
+			write(DATA.resolve("loot_table/chests/sculk_reliquary.json"), "{\"type\":\"minecraft:chest\",\"pools\":[{\"entries\":[{\"type\":\"minecraft:item\",\"name\":\""
+					+ NS + ":sculk_key\"}],\"rolls\":1},{\"entries\":[{\"type\":\"minecraft:item\",\"modifier\":{\"type\":\"minecraft:set_count\",\"count\":{\"type\":\"minecraft:uniform\","
+					+ "\"max\":4,\"min\":1}},\"name\":\"minecraft:echo_shard\",\"weight\":10},{\"type\":\"minecraft:item\",\"modifier\":{\"type\":\"minecraft:set_count\",\"count\":"
+					+ "{\"type\":\"minecraft:uniform\",\"max\":6,\"min\":2}},\"name\":\"" + NS + ":echo_crystal\",\"weight\":15},{\"type\":\"minecraft:item\",\"name\":\"minecraft:golden_apple\","
+					+ "\"weight\":8},{\"type\":\"minecraft:item\",\"name\":\"minecraft:disc_fragment_5\",\"weight\":6}],\"rolls\":{\"type\":\"minecraft:uniform\",\"max\":4,\"min\":2}}],"
+					+ "\"random_sequence\":\"" + NS + ":chests/sculk_reliquary\"}");
+			chest("echo_warden_reward", new Object[][]{{NS + ":sonic_blade", 10, 1, 1}, {NS + ":echo_horn", 8, 1, 1}, {NS + ":echo_crystal_block", 10, 1, 3},
+					{"minecraft:enchanted_golden_apple", 4, 1, 1}, {"minecraft:echo_shard", 10, 2, 4}}, 3, 5);
+		}
+
+		static void recipes() throws IOException {
+			shapeless("echo_planks", NS + ":echo_planks", 4, NS + ":echo_log");
+			shaped("echo_crystal_block", 1, new String[]{"###", "###", "###"}, "#", NS + ":echo_crystal");
+			shaped("sonic_blade", 1, new String[]{" C ", " H ", " S "}, "C", NS + ":echo_crystal_block", "H", NS + ":echo_heart", "S", "minecraft:diamond_sword");
+			shaped("echo_horn", 1, new String[]{" A ", "SCS"}, "A", NS + ":glimmer_antler", "S", NS + ":snail_shell", "C", NS + ":echo_crystal");
+			shaped("cloud_bottle", 1, new String[]{"FFF", " B "}, "F", NS + ":cloud_fluff", "B", "minecraft:glass_bottle");
+			shaped("salamander_charm", 1, new String[]{" S ", "XGX", " X "}, "S", "minecraft:string", "X", NS + ":salamander_scale", "G", "minecraft:gold_ingot");
+			shaped("sculk_key", 1, new String[]{" C ", "CHC", " C "}, "C", NS + ":echo_crystal", "H", NS + ":echo_heart");
+			write(DATA.resolve("recipe/cooked_glimmer_venison.json"), "{\"type\":\"minecraft:smelting\",\"cookingtime\":200,\"experience\":0.35,"
+					+ "\"ingredient\":\"" + NS + ":glimmer_venison\",\"result\":{\"id\":\"" + NS + ":cooked_glimmer_venison\"}}");
+			write(DATA.resolve("recipe/cooked_glimmer_venison_from_smoking.json"), "{\"type\":\"minecraft:smoking\",\"cookingtime\":100,\"experience\":0.35,"
+					+ "\"ingredient\":\"" + NS + ":glimmer_venison\",\"result\":{\"id\":\"" + NS + ":cooked_glimmer_venison\"}}");
+		}
+
+		static void tags() throws IOException {
+			tag(MC_DATA.resolve("tags/block/mineable/pickaxe.json"), "echo_crystal_ore", "echo_crystal_block", "sculk_keyhole");
+			tag(MC_DATA.resolve("tags/block/mineable/axe.json"), "echo_log", "echo_planks");
+			tag(MC_DATA.resolve("tags/block/mineable/hoe.json"), "echo_leaves");
+			tag(MC_DATA.resolve("tags/block/needs_iron_tool.json"), "echo_crystal_ore", "echo_crystal_block");
+			tag(MC_DATA.resolve("tags/block/logs.json"), "echo_log");
+			tag(MC_DATA.resolve("tags/block/logs_that_burn.json"), "echo_log");
+			tag(MC_DATA.resolve("tags/block/leaves.json"), "echo_leaves");
+			tag(MC_DATA.resolve("tags/block/planks.json"), "echo_planks");
+			tag(MC_DATA.resolve("tags/block/small_flowers.json"), "echo_bloom");
+			tag(MC_DATA.resolve("tags/item/logs.json"), "echo_log");
+			tag(MC_DATA.resolve("tags/item/planks.json"), "echo_planks");
+			tag(MC_DATA.resolve("tags/item/leaves.json"), "echo_leaves");
+			tag(MC_DATA.resolve("tags/item/swords.json"), "sonic_blade");
+			tag(MC_DATA.resolve("tags/item/meat.json"), "glimmer_venison", "cooked_glimmer_venison", "toad_leg");
+			write(DATA.resolve("tags/worldgen/biome/has_sculk_sanctuary.json"), "{\"values\":[\"minecraft:deep_dark\"]}");
+			write(DATA.resolve("tags/worldgen/structure/boss_arenas.json"), "{\"values\":[\"" + NS + ":glowkeeper_sanctum\",\"" + NS + ":umbral_throne\",\"" + NS
+					+ ":ember_citadel\",\"" + NS + ":molten_forge\",\"" + NS + ":astral_spire\",\"" + NS + ":frozen_crypt\",\"" + NS + ":storm_aerie\",\"" + NS
+					+ ":hollow_crypt\",\"" + NS + ":sculk_sanctuary\"]}");
+		}
+
+		static final String SCULK_TYPE = """
+				{
+				  "ambient_light": 0.2,
+				  "attributes": {
+				    "minecraft:audio/ambient_sounds": {"mood": {"block_search_extent": 8, "offset": 2.0, "sound": "minecraft:ambient.cave", "tick_delay": 3000}},
+				    "minecraft:gameplay/bed_rule": {"can_set_spawn": "never", "can_sleep": "never", "destroy_on_use": true},
+				    "minecraft:gameplay/respawn_anchor_works": true,
+				    "minecraft:visual/ambient_light_color": "#1f4a4a",
+				    "minecraft:visual/fog_color": "#06181c",
+				    "minecraft:visual/sky_color": "#030c10",
+				    "minecraft:visual/sky_light_color": "#3ad6d6",
+				    "minecraft:visual/sky_light_factor": 0.0,
+				    "minecraft:visual/fog_start_distance": 20.0,
+				    "minecraft:visual/fog_end_distance": 160.0
+				  },
+				  "coordinate_scale": 1.0,
+				  "default_clock": "minecraft:the_end",
+				  "has_ceiling": false,
+				  "has_ender_dragon_fight": false,
+				  "has_fixed_time": true,
+				  "has_skylight": true,
+				  "height": 384,
+				  "infiniburn": "#minecraft:infiniburn_overworld",
+				  "logical_height": 384,
+				  "min_y": -64,
+				  "monster_spawn_block_light_limit": 0,
+				  "monster_spawn_light_level": 15,
+				  "skybox": "end",
+				  "timelines": "#minecraft:in_end"
+				}
+				""";
+
+		static String biomeEntry(String biome, String temperature) {
+			return "{\"biome\":\"" + NS + ":" + biome + "\",\"parameters\":{\"temperature\":" + temperature + ",\"humidity\":[-1.0,1.0],\"continentalness\":[-1.2,1.2],"
+					+ "\"erosion\":[-1.0,1.0],\"weirdness\":[-1.0,1.0],\"depth\":[0.0,1.0],\"offset\":0.0}}";
+		}
+
+		static void worldgen() throws IOException {
+			write(DATA.resolve("dimension_type/sculk_realm.json"), SCULK_TYPE);
+			write(DATA.resolve("dimension/sculk_realm.json"), "{\"type\":\"" + NS + ":sculk_realm\",\"generator\":{\"type\":\"minecraft:noise\",\"settings\":\"" + NS
+					+ ":sculk_realm\",\"biome_source\":{\"type\":\"minecraft:multi_noise\",\"biomes\":[" + biomeEntry("sculk_plains", "[-1.0,-0.15]") + ","
+					+ biomeEntry("echo_forest", "[-0.15,0.35]") + "," + biomeEntry("sculk_spires", "[0.35,1.0]") + "]}}}");
+			noiseFromVanilla("overworld", "sculk_realm", new String[][]{
+					{"\"default_block\": \"minecraft:stone\"", "\"default_block\": \"minecraft:deepslate\""},
+					{"\"material_rule\": \"minecraft:overworld\"", "\"material_rule\": \"glowcube_realms:sculk_realm\""}});
+			write(DATA.resolve("worldgen/material_rule/sculk_realm.json"), "{\"type\":\"minecraft:sequence\",\"sequence\":[\"minecraft:bedrock_floor\","
+					+ "{\"type\":\"minecraft:condition\",\"if_true\":{\"type\":\"minecraft:biome\",\"biome_is\":[\"" + NS + ":echo_forest\"]},\"then_run\":{\"type\":\"minecraft:condition\","
+					+ "\"if_true\":\"minecraft:on_floor\",\"then_run\":{\"type\":\"minecraft:block\",\"result_state\":\"minecraft:moss_block\"}}},"
+					+ "{\"type\":\"minecraft:condition\",\"if_true\":\"minecraft:on_floor\",\"then_run\":{\"type\":\"minecraft:block\",\"result_state\":\"minecraft:sculk\"}},"
+					+ "{\"type\":\"minecraft:condition\",\"if_true\":\"minecraft:under_floor\",\"then_run\":{\"type\":\"minecraft:block\",\"result_state\":\"minecraft:sculk\"}}]}");
+			feature("echo_crystal_ore", ore(NS + ":echo_crystal_ore", "minecraft:deepslate", 6));
+			feature("echo_spike", "{\"type\":\"" + NS + ":crystal_spike\",\"block\":\"" + NS + ":echo_crystal_block\"}");
+			feature("echo_bloom", "{\"type\":\"minecraft:simple_block\",\"to_place\":{\"id\":\"" + NS + ":echo_bloom\"}}");
+			feature("echo_tree", tree(NS + ":echo_log", NS + ":echo_leaves",
+					"{\"type\":\"minecraft:fancy_trunk_placer\",\"base_height\":9,\"height_rand_a\":6,\"height_rand_b\":2}",
+					"{\"type\":\"minecraft:fancy_foliage_placer\",\"height\":4,\"offset\":4,\"radius\":2}",
+					"{\"type\":\"minecraft:two_layers_feature_size\",\"limit\":0,\"min_clipped_height\":4,\"upper_size\":0}"));
+			feature("giant_echo_tree", tree(NS + ":echo_log", NS + ":echo_leaves",
+					"{\"type\":\"minecraft:mega_jungle_trunk_placer\",\"base_height\":14,\"height_rand_a\":6,\"height_rand_b\":10}",
+					"{\"type\":\"minecraft:jungle_foliage_placer\",\"height\":3,\"offset\":0,\"radius\":4}",
+					"{\"type\":\"minecraft:two_layers_feature_size\",\"lower_size\":1,\"upper_size\":2}"));
+			placed("echo_crystal_ore", NS + ":echo_crystal_ore", count(10) + "," + inSquare() + "," + heightRange(-60, 120) + "," + biome());
+			placed("echo_spikes", NS + ":echo_spike", count(2) + "," + inSquare() + "," + heightmap("WORLD_SURFACE_WG") + "," + biome());
+			placed("echo_spikes_rare", NS + ":echo_spike", rarity(3) + "," + inSquare() + "," + heightmap("WORLD_SURFACE_WG") + "," + biome());
+			placed("echo_blooms", NS + ":echo_bloom", count(24) + "," + inSquare() + "," + heightmap("MOTION_BLOCKING") + "," + biome() + "," + survive(NS + ":echo_bloom"));
+			placed("echo_trees_sparse", NS + ":echo_tree", rarity(2) + "," + inSquare() + "," + heightmap("MOTION_BLOCKING") + "," + biome());
+			placed("echo_trees_dense", NS + ":echo_tree", count(5) + "," + inSquare() + "," + heightmap("MOTION_BLOCKING") + "," + biome());
+			placed("giant_echo_trees", NS + ":giant_echo_tree", count(1) + "," + inSquare() + "," + heightmap("MOTION_BLOCKING") + "," + biome());
+			// keep one global feature order across these biomes
+			sculkBiome("sculk_plains", q(NS + ":echo_trees_sparse") + "," + q(NS + ":echo_spikes_rare") + "," + q("minecraft:sculk_patch_deep_dark") + "," + q("minecraft:sculk_vein"));
+			sculkBiome("echo_forest", q(NS + ":giant_echo_trees") + "," + q(NS + ":echo_trees_dense") + "," + q(NS + ":echo_blooms") + "," + q("minecraft:sculk_vein"));
+			sculkBiome("sculk_spires", q(NS + ":echo_spikes") + "," + q("minecraft:sculk_patch_deep_dark") + "," + q("minecraft:sculk_vein"));
+			structure("sculk_sanctuary", "echo_warden", "#" + NS + ":has_sculk_sanctuary", "underground_decoration", -40);
+			structureSet("sculk_sanctuary", 14, 5, 2468013);
+			structureSet("frozen_crypt", 24, 9, 8812345);
+		}
+
+		static void sculkBiome(String name, String vegetation) throws IOException {
+			String json = "{\"attributes\":{\"minecraft:gameplay/natural_mob_spawns\":{\"argument\":{\"spawn_costs\":{},\"spawns_by_category\":{"
+					+ "\"creature\":[{\"type\":\"" + NS + ":sculk_snail\",\"count\":{\"type\":\"minecraft:uniform\",\"max_inclusive\":3,\"min_inclusive\":1},\"weight\":60}],"
+					+ "\"monster\":[{\"type\":\"" + NS + ":sculk_stalker\",\"count\":{\"type\":\"minecraft:uniform\",\"max_inclusive\":3,\"min_inclusive\":1},\"weight\":100}]}},"
+					+ "\"modifier\":\"overlay\"},\"minecraft:visual/sky_color\":\"#030c10\",\"minecraft:visual/fog_color\":\"#06181c\",\"minecraft:visual/water_fog_color\":\"#06181c\"},"
+					+ "\"carvers\":[\"minecraft:cave\",\"minecraft:cave_extra_underground\",\"minecraft:canyon\"],\"downfall\":0.4,"
+					+ "\"effects\":{\"foliage_color\":\"#1ab0a8\",\"grass_color\":\"#1ab0a8\",\"water_color\":\"#0a3a40\"},"
+					+ "\"features\":[[],[],[],[],[],[],[\"" + NS + ":echo_crystal_ore\"],[],[],[" + vegetation + "],[]],\"has_precipitation\":false,\"temperature\":0.5}";
+			write(DATA.resolve("worldgen/biome/" + name + ".json"), json);
+		}
+
+		/** Bigger villages: more jigsaw steps and a larger radius than vanilla. */
+		static void villages() throws IOException {
+			Path jar = Path.of(System.getProperty("user.home"), ".gradle/caches/fabric-loom/26.3/minecraft-common.jar");
+			try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(jar.toFile())) {
+				for (String v : new String[]{"plains", "desert", "savanna", "snowy", "taiga"}) {
+					String json = new String(zip.getInputStream(zip.getEntry("data/minecraft/worldgen/structure/village_" + v + ".json")).readAllBytes(), StandardCharsets.UTF_8);
+					json = json.replace("\"size\": 6", "\"size\": 10").replace("\"max_distance_from_center\": 80", "\"max_distance_from_center\": 116");
+					write(MC_DATA.resolve("worldgen/structure/village_" + v + ".json"), json);
+				}
+			}
 		}
 	}
 }

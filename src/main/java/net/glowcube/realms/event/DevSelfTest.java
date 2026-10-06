@@ -46,6 +46,76 @@ public final class DevSelfTest {
 				return;
 			}
 			GlowcubeRealms.LOGGER.info("[SelfTest] > {}", cmd);
+			if (cmd.startsWith("useitems ")) {
+				// uses every mod item once with a fake player (right-click and left-click abilities) and logs failures
+				String[] a = cmd.split(" ");
+				net.minecraft.server.level.ServerLevel lvl = server.getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, net.minecraft.resources.Identifier.parse(a[1])));
+				net.fabricmc.fabric.api.entity.FakePlayer fake = net.fabricmc.fabric.api.entity.FakePlayer.get(lvl);
+				fake.snapTo(Double.parseDouble(a[2]), Double.parseDouble(a[3]), Double.parseDouble(a[4]), 0, 20);
+				int ok = 0, failed = 0;
+				for (net.minecraft.world.item.Item item : net.glowcube.realms.registry.ModItems.ALL) {
+					for (boolean sneak : new boolean[]{false, true}) {
+						try {
+							net.minecraft.world.item.ItemStack stack = new net.minecraft.world.item.ItemStack(item);
+							fake.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+							fake.setShiftKeyDown(sneak);
+							fake.getCooldowns().removeCooldown(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item));
+							item.use(lvl, fake, net.minecraft.world.InteractionHand.MAIN_HAND);
+							if (item instanceof net.glowcube.realms.item.LeftClickAbility lc) lc.onLeftClick(fake, stack);
+							ok++;
+						} catch (Throwable t) {
+							failed++;
+							GlowcubeRealms.LOGGER.error("[SelfTest] item " + item + " sneak=" + sneak + " failed", t);
+						}
+					}
+				}
+				fake.setShiftKeyDown(false);
+				GlowcubeRealms.LOGGER.info("[SelfTest] useitems done: {} ok, {} failed", ok, failed);
+				return;
+			}
+			if (cmd.startsWith("useon ")) {
+				// "useon <dim> <x> <y> <z> <item|empty>": a fake player right-clicks the block (fires UseBlockCallback like a real click)
+				String[] a = cmd.split(" ");
+				net.minecraft.server.level.ServerLevel lvl = server.getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, net.minecraft.resources.Identifier.parse(a[1])));
+				net.minecraft.core.BlockPos bp = new net.minecraft.core.BlockPos(Integer.parseInt(a[2]), Integer.parseInt(a[3]), Integer.parseInt(a[4]));
+				net.fabricmc.fabric.api.entity.FakePlayer fake = net.fabricmc.fabric.api.entity.FakePlayer.get(lvl);
+				fake.snapTo(bp.getX() + 0.5, bp.getY() + 1, bp.getZ() + 2.5, 180, 30);
+				net.minecraft.world.item.ItemStack stack = a[5].equals("empty") ? net.minecraft.world.item.ItemStack.EMPTY
+						: new net.minecraft.world.item.ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(net.minecraft.resources.Identifier.parse(a[5])));
+				fake.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, stack);
+				try {
+					net.minecraft.world.InteractionResult r = fake.gameMode.useItemOn(fake, lvl, stack, net.minecraft.world.InteractionHand.MAIN_HAND,
+							new net.minecraft.world.phys.BlockHitResult(net.minecraft.world.phys.Vec3.atCenterOf(bp), net.minecraft.core.Direction.SOUTH, bp, false));
+					GlowcubeRealms.LOGGER.info("[SelfTest] useon {} {} -> {} now={} count={}", bp, a[5], r, lvl.getBlockState(bp), stack.getCount());
+				} catch (Throwable t) {
+					GlowcubeRealms.LOGGER.error("[SelfTest] useon failed", t);
+				}
+				return;
+			}
+			if (cmd.startsWith("village ")) {
+				// "village <x> <z> <checks>": runs the village population/guard check with a fake player standing there
+				String[] a = cmd.split(" ");
+				net.minecraft.server.level.ServerLevel lvl = server.overworld();
+				int x = Integer.parseInt(a[1]), z = Integer.parseInt(a[2]);
+				net.fabricmc.fabric.api.entity.FakePlayer fake = net.fabricmc.fabric.api.entity.FakePlayer.get(lvl);
+				fake.snapTo(x + 0.5, lvl.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z), z + 0.5, 0, 0);
+				for (int i = 0; i < Integer.parseInt(a[3]); i++) RealmEvents.guardVillages(fake);
+				net.minecraft.world.phys.AABB box = new net.minecraft.world.phys.AABB(fake.blockPosition()).inflate(64, 30, 64);
+				GlowcubeRealms.LOGGER.info("[SelfTest] village {} {} -> villagers={} golems={} guards={}", x, z,
+						lvl.getEntitiesOfClass(net.minecraft.world.entity.npc.villager.Villager.class, box).size(),
+						lvl.getEntitiesOfClass(net.minecraft.world.entity.animal.golem.IronGolem.class, box).size(),
+						lvl.getEntitiesOfClass(net.glowcube.realms.entity.RealmGuardian.class, box).size());
+				return;
+			}
+			if (cmd.startsWith("count ")) {
+				// "count <dim>": logs mod entities per type in that dimension
+				String[] a = cmd.split(" ");
+				net.minecraft.server.level.ServerLevel lvl = server.getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, net.minecraft.resources.Identifier.parse(a[1])));
+				java.util.Map<String, Integer> counts = new java.util.TreeMap<>();
+				for (net.minecraft.world.entity.Entity e : lvl.getAllEntities()) counts.merge(e.getType().toShortString(), 1, Integer::sum);
+				GlowcubeRealms.LOGGER.info("[SelfTest] count {} -> {}", a[1], counts);
+				return;
+			}
 			if (cmd.startsWith("safespot ")) {
 				String[] a = cmd.split(" ");
 				net.minecraft.server.level.ServerLevel lvl = server.getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, net.minecraft.resources.Identifier.parse(a[1])));

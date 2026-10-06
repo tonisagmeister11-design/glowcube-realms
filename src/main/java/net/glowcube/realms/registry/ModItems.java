@@ -176,6 +176,29 @@ public final class ModItems {
 	public static final Item STARFRUIT_PIE = register("starfruit_pie", LoreItem::new, food(8, 1.0F, false, 64, eff(MobEffects.ABSORPTION, 1200, 1), eff(MobEffects.SPEED, 600, 0)));
 	public static final Item EMBER_PEPPER = register("ember_pepper", LoreItem::new, food(2, 0.3F, true, 64, eff(MobEffects.FIRE_RESISTANCE, 1200, 0), eff(MobEffects.HASTE, 600, 0)));
 
+	// ------------------------------------------------------------ update 3: Sculk Realm
+	public static final Item SCULK_KEY = register("sculk_key", net.glowcube.realms.item.SculkKeyItem::new, new Item.Properties().stacksTo(1).rarity(Rarity.EPIC));
+	public static final Item ECHO_CRYSTAL = register("echo_crystal", LoreItem::new, new Item.Properties());
+	public static final Item ECHO_HEART = register("echo_heart", LoreItem::new, new Item.Properties().rarity(Rarity.EPIC));
+	public static final Item SONIC_BLADE = register("sonic_blade", Gear.SonicBlade::new, new Item.Properties().sword(LEGENDARY, 4.5F, -2.4F).rarity(Rarity.EPIC));
+	public static final Item ECHO_HORN = register("echo_horn", Gear.EchoHorn::new, new Item.Properties().durability(64).rarity(Rarity.RARE));
+
+	// ------------------------------------------------------------ update 3: creature drops
+	public static final Item GLIMMER_VENISON = register("glimmer_venison", LoreItem::new, food(3, 0.3F, false, 64, eff(MobEffects.SPEED, 200, 0)));
+	public static final Item COOKED_GLIMMER_VENISON = register("cooked_glimmer_venison", LoreItem::new,
+			food(8, 0.8F, false, 64, eff(MobEffects.SPEED, 600, 0), eff(MobEffects.REGENERATION, 100, 0)));
+	public static final Item GLIMMER_ANTLER = register("glimmer_antler", LoreItem::new, new Item.Properties());
+	public static final Item CLOUD_FLUFF = register("cloud_fluff", LoreItem::new, new Item.Properties());
+	public static final Item CLOUD_BOTTLE = register("cloud_bottle", Gear.CloudBottle::new, new Item.Properties().durability(200).rarity(Rarity.UNCOMMON));
+	public static final Item TOAD_LEG = register("toad_leg", LoreItem::new, food(4, 0.5F, false, 64, eff(MobEffects.JUMP_BOOST, 600, 1)));
+	public static final Item GLOW_JELLY = register("glow_jelly", LoreItem::new, food(2, 0.3F, true, 64, eff(MobEffects.NIGHT_VISION, 1200, 0), eff(MobEffects.GLOWING, 200, 0)));
+	public static final Item SNAIL_SHELL = register("snail_shell", LoreItem::new, new Item.Properties());
+	public static final Item SCULK_SLIME = register("sculk_slime", LoreItem::new, new Item.Properties());
+	public static final Item SALAMANDER_SCALE = register("salamander_scale", LoreItem::new, new Item.Properties().fireResistant());
+	public static final Item SALAMANDER_CHARM = register("salamander_charm", Gear.SalamanderCharm::new, new Item.Properties().durability(40).rarity(Rarity.RARE).fireResistant());
+	public static final Item VOID_JELLY_ITEM = register("void_jelly", LoreItem::new,
+			food(4, 0.6F, true, 64, eff(MobEffects.SLOW_FALLING, 400, 0), eff(MobEffects.REGENERATION, 100, 0)));
+
 	// ------------------------------------------------------------ spawn eggs
 	public static final Item GLOW_WISP_SPAWN_EGG = egg("glow_wisp_spawn_egg", ModEntities.GLOW_WISP);
 	public static final Item CRYSTAL_GOLEM_SPAWN_EGG = egg("crystal_golem_spawn_egg", ModEntities.CRYSTAL_GOLEM);
@@ -190,6 +213,16 @@ public final class ModItems {
 	public static final Item FROST_LICH_SPAWN_EGG = egg("frost_lich_spawn_egg", ModEntities.FROST_LICH);
 	public static final Item TEMPEST_DRAKE_SPAWN_EGG = egg("tempest_drake_spawn_egg", ModEntities.TEMPEST_DRAKE);
 	public static final Item HOLLOW_KING_SPAWN_EGG = egg("hollow_king_spawn_egg", ModEntities.HOLLOW_KING);
+
+	public static final Item ECHO_WARDEN_SPAWN_EGG = egg("echo_warden_spawn_egg", ModEntities.ECHO_WARDEN);
+	public static final Item SCULK_STALKER_SPAWN_EGG = egg("sculk_stalker_spawn_egg", ModEntities.SCULK_STALKER);
+	public static final Item GLIMMER_DEER_SPAWN_EGG = egg("glimmer_deer_spawn_egg", ModEntities.GLIMMER_DEER);
+	public static final Item CLOUD_BUNNY_SPAWN_EGG = egg("cloud_bunny_spawn_egg", ModEntities.CLOUD_BUNNY);
+	public static final Item SHADE_TOAD_SPAWN_EGG = egg("shade_toad_spawn_egg", ModEntities.SHADE_TOAD);
+	public static final Item LANTERN_BUG_SPAWN_EGG = egg("lantern_bug_spawn_egg", ModEntities.LANTERN_BUG);
+	public static final Item SCULK_SNAIL_SPAWN_EGG = egg("sculk_snail_spawn_egg", ModEntities.SCULK_SNAIL);
+	public static final Item EMBER_SALAMANDER_SPAWN_EGG = egg("ember_salamander_spawn_egg", ModEntities.EMBER_SALAMANDER);
+	public static final Item VOID_JELLY_SPAWN_EGG = egg("void_jelly_spawn_egg", ModEntities.VOID_JELLY);
 
 	private static MobEffectInstance eff(net.minecraft.core.Holder<net.minecraft.world.effect.MobEffect> effect, int ticks, int amplifier) {
 		return new MobEffectInstance(effect, ticks, amplifier);

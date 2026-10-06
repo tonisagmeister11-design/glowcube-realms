@@ -44,6 +44,7 @@ public class TextureGen {
 		blocks();
 		items();
 		items2();
+		items3();
 		equipment();
 		gui();
 		EntityTex.all();
@@ -161,7 +162,9 @@ public class TextureGen {
 			golem("crystal_golem", 502, new int[]{0x3a3f4f, 0x4a5164, 0x5a627a, 0x6b7590, 0x7f8aa6}, new int[]{0x2fb4e6, 0x6fdcff, 0xb5f2ff}, CRYSTAL, 0x9ff2ff);
 			golem("infernal_colossus", 512, MAGMA_ROCK, new int[]{0xf27a1d, 0xffb84d, 0xc9400f}, new Mat(EMBER, "crystal"), 0xffd060);
 			crawler();
-			guardian();
+			guardianVillager("realm_guardian", 0);
+			guardianVillager("realm_guardian_chain", 1);
+			guardianVillager("realm_guardian_iron", 2);
 			glowkeeper("glowkeeper", 505, new int[]{0x9c7a1f, 0xc9a23a, 0xe8c45c, 0xf8e08f, 0xfff6cf}, new int[]{0xb8c6d8, 0xd2dce8, 0xe8eef5, 0xffffff}, CRYSTAL,
 					0x9ff2ff, 0x6fdcff);
 			glowkeeper("void_herald", 515, new int[]{0x3a1a5a, 0x5a2a8a, 0x7a3aae, 0x9a5ad0, 0xc08aff}, OBSIDIAN, VOID_CRYSTAL, 0xff7aff, 0xd08bff);
@@ -171,6 +174,7 @@ public class TextureGen {
 			warden("frost_lich", 517, FROST_ROBE, new Mat(ICE, "crystal"), new int[]{0x0e2440, 0x16345a, 0x204874, 0x2a5a8e}, 0x9ff8ff, ICE);
 			warden("hollow_king", 518, KING_BONE, new Mat(SOUL, "crystal"), new int[]{0x12241a, 0x1a3424, 0x22442e, 0x2a5438}, 0x7ae8e8, GOLD);
 			wyvern();
+			creatures3();
 			mapIcons();
 			icon("boss_infernal_colossus", EMBER, MAGMA_ROCK);
 			icon("boss_void_herald", VOIDSHARD, OBSIDIAN);
@@ -418,6 +422,205 @@ public class TextureGen {
 					(g, x, y, face, fx, fy, fw, fh) -> fy >= fh - 2 ? trimPal[2] : 0);
 			copyGlowFromImage(40, 18, 44, 24);
 			end(name);
+		}
+
+		// ------------------------------------------------------------ update 3 creatures
+		static final int[] SCULK_P = {0x041418, 0x08262c, 0x0d3a42, 0x135058, 0x1a6a72, 0x2a8a90};
+		static final int[] SCULK_GLOW = {0x29dfeb, 0x5cf2ff, 0xb0ffff};
+
+		/** Village guard on the villager/illager UV layout: robe, tabard with Glowcube emblem, painted armor variants. */
+		static void guardianVillager(String name, int variant) throws IOException {
+			begin(64, 64, 540 + variant);
+			int[] skin = {0x9c6b4a, 0xb5815d, 0xc99572, 0xd9a886};
+			int[] uniform = {0x1d4a6a, 0x24608a, 0x2f78a8, 0x4290c4};
+			int[] chain = {0x4a4e58, 0x6a707c, 0x8a909c, 0xaab0bc};
+			int[] iron = {0x7a8290, 0x9aa2b0, 0xbcc4d0, 0xdde3ec};
+			int[] armor = variant == 2 ? iron : chain;
+			cube(0, 0, 8, 10, 8, new Mat(skin, "stone"), (g, x, y, face, fx, fy, fw, fh) -> {
+				if (variant == 2 && fy <= 3) return armor[fx % 2 == 0 ? 3 : 2]; // iron helmet
+				if (fy <= 1) return 0x3b2614;
+				if (face == 1) {
+					if (fy == 5 && (fx == 1 || fx == 6)) return 0xffffff;
+					if (fy == 5 && (fx == 2 || fx == 5)) return 0x2a6a3a;
+					if (fy == 4 && fx >= 1 && fx <= 6 && fx != 3 && fx != 4) return 0x3b2614;
+				}
+				return 0;
+			});
+			cube(24, 0, 2, 4, 2, new Mat(new int[]{0xb5815d, 0xc99572}, "stone"));
+			Detail tabard = (g, x, y, face, fx, fy, fw, fh) -> {
+				if (variant >= 1 && fy <= 5) return armor[(fx + fy) % 4 == 0 ? 3 : 1 + (fx + fy) % 2];
+				if (face == 1 || face == 3) {
+					int cx = fx - 2, cy = fy - 6;
+					if (cx >= 0 && cx < 4 && cy >= 0 && cy < 4) {
+						boolean edge = cx == 0 || cy == 0 || cx == 3 || cy == 3;
+						return edge ? 0x0b2a3a : (cx + cy) % 2 == 0 ? 0x9ff2ff : 0x5cdfff;
+					}
+				}
+				if (fy == fh - 2) return 0x4a3220;
+				if (fx == 0 || fx == fw - 1) return 0xd19a0f;
+				return 0;
+			};
+			cube(16, 20, 8, 12, 6, new Mat(uniform, "cloth"), tabard);
+			cube(0, 38, 8, 20, 6, new Mat(uniform, "cloth"), (g, x, y, face, fx, fy, fw, fh) -> {
+				if (variant >= 1 && fy <= 5) return armor[1 + (fx + fy) % 3];
+				if (fy >= fh - 2) return 0xd19a0f;
+				if (fx == fw / 2 && face == 1) return 0xd19a0f;
+				return 0;
+			});
+			Detail sleeve = (g, x, y, face, fx, fy, fw, fh) -> fy >= fh - 3 ? skin[2] : (variant >= 1 && fy < 3 ? armor[2] : 0);
+			cube(44, 22, 4, 8, 4, new Mat(uniform, "cloth"), sleeve);
+			cube(40, 38, 8, 4, 4, new Mat(uniform, "cloth"));
+			cube(40, 46, 4, 12, 4, new Mat(uniform, "cloth"), sleeve);
+			cube(0, 22, 4, 12, 4, new Mat(new int[]{0x2a2a3a, 0x34344a, 0x40405a}, "cloth"), (g, x, y, face, fx, fy, fw, fh) -> fy >= 9 ? 0x3b2614 : 0);
+			save(img, "entity/" + name);
+		}
+
+		static void creatures3() throws IOException {
+			// Echo Warden (128x128)
+			begin(128, 128, 560);
+			Mat hide = new Mat(SCULK_P, "fur", SCULK_GLOW, 0.035);
+			cube(0, 0, 18, 21, 11, hide, (g, x, y, face, fx, fy, fw, fh) -> {
+				if (face == 1 && fy > 3 && fy < 14 && fx > 4 && fx < 13 && (fy % 3 == 0 || Math.abs(fx - 8.5) < 0.6)) {
+					g.setRGB(x, y, argb(0x5cf2ff));
+					return 0x5cf2ff;
+				}
+				return 0;
+			});
+			cube(0, 32, 16, 16, 10, hide, (g, x, y, face, fx, fy, fw, fh) -> {
+				if (face == 1 && fy >= 7 && fy <= 8 && (fx >= 3 && fx <= 5 || fx >= 10 && fx <= 12)) {
+					g.setRGB(x, y, argb(0xb0ffff));
+					return 0xb0ffff;
+				}
+				if (face == 1 && fy >= 11 && fx % 2 == 0 && fx > 2 && fx < 13) return 0x0a0a0a;
+				return 0;
+			});
+			cube(60, 40, 16, 16, 0, new Mat(new int[]{0x135058, 0x1a6a72, 0x29dfeb}, "crystal"), glowAll(0.4));
+			cube(60, 56, 16, 16, 0, new Mat(new int[]{0x135058, 0x1a6a72, 0x29dfeb}, "crystal"), glowAll(0.4));
+			cube(58, 0, 8, 28, 8, hide);
+			cube(90, 0, 8, 28, 8, hide);
+			cube(0, 60, 6, 13, 6, hide);
+			cube(24, 60, 6, 13, 6, hide);
+			end("echo_warden");
+
+			// Sculk Stalker (humanoid 64x64)
+			begin(64, 64, 561);
+			Mat flesh = new Mat(new int[]{0x1a2a2a, 0x24383a, 0x30484a, 0x3c5a5c}, "fur", SCULK_GLOW, 0.05);
+			cube(0, 0, 8, 8, 8, flesh, (g, x, y, face, fx, fy, fw, fh) -> {
+				if (face == 1 && fy == 4 && (fx == 2 || fx == 5)) {
+					g.setRGB(x, y, argb(0x5cf2ff));
+					return 0x5cf2ff;
+				}
+				return 0;
+			});
+			cube(16, 16, 8, 12, 4, flesh);
+			cube(40, 16, 4, 12, 4, flesh);
+			cube(0, 16, 4, 12, 4, flesh);
+			end("sculk_stalker");
+
+			// Glimmer Deer (64x64)
+			begin(64, 64, 562);
+			Mat coat = new Mat(new int[]{0x6a5a8a, 0x806ea4, 0x9886be, 0xb0a0d6, 0xc8b8ec}, "fur", new int[]{0xffffff, 0xe0f8ff}, 0.03);
+			cube(0, 0, 8, 8, 16, coat, (g, x, y, face, fx, fy, fw, fh) -> face == 5 ? 0xe8e0f8 : 0);
+			cube(0, 24, 4, 9, 4, coat);
+			cube(16, 24, 6, 5, 8, coat, (g, x, y, face, fx, fy, fw, fh) -> {
+				if ((face == 2 || face == 4) && fy == 1 && fx == 2) return 0x101018;
+				if (face == 1 && fy >= 3) return 0x3a2a4a;
+				return 0;
+			});
+			cube(44, 24, 1, 8, 6, new Mat(GLOWCRYSTAL, "crystal"), glowAll(0.9));
+			cube(0, 37, 3, 2, 1, coat);
+			cube(0, 40, 2, 10, 2, coat, (g, x, y, face, fx, fy, fw, fh) -> fy >= 8 ? 0x2a2030 : 0);
+			cube(8, 40, 2, 10, 2, coat, (g, x, y, face, fx, fy, fw, fh) -> fy >= 8 ? 0x2a2030 : 0);
+			cube(16, 40, 2, 3, 2, new Mat(new int[]{0xe8e0f8, 0xffffff}, "fur"));
+			end("glimmer_deer");
+
+			// Cloud Bunny (64x32)
+			begin(64, 32, 563);
+			Mat fluff = new Mat(new int[]{0xc8d8ec, 0xd8e6f4, 0xe8f2fa, 0xffffff}, "fur");
+			cube(0, 0, 6, 6, 8, fluff);
+			cube(0, 14, 5, 5, 5, fluff, (g, x, y, face, fx, fy, fw, fh) -> {
+				if (face == 1 && fy == 1 && (fx == 1 || fx == 3)) return 0x2a3a6a;
+				if (face == 1 && fy == 3 && fx == 2) return 0xffa0c0;
+				return 0;
+			});
+			cube(20, 14, 2, 6, 1, fluff, (g, x, y, face, fx, fy, fw, fh) -> face == 1 && fy > 0 && fy < 5 ? 0xffc8dc : 0);
+			cube(0, 24, 2, 3, 4, fluff);
+			cube(12, 24, 5, 3, 2, fluff);
+			cube(28, 0, 3, 3, 2, new Mat(new int[]{0xffffff}, "fur"));
+			save(img, "entity/cloud_bunny");
+
+			// Shade Toad (64x32)
+			begin(64, 32, 564);
+			Mat skinT = new Mat(new int[]{0x0e2a2a, 0x143c3a, 0x1a504c, 0x22665e}, "fur", new int[]{0x5cf2dd, 0x2bbfa9}, 0.06);
+			cube(0, 0, 10, 6, 11, skinT, (g, x, y, face, fx, fy, fw, fh) -> face == 5 ? 0x8ac8a8 : 0);
+			cube(42, 0, 3, 2, 3, new Mat(new int[]{0xfff4b8, 0xffe066}, "crystal"), (g, x, y, face, fx, fy, fw, fh) -> {
+				g.setRGB(x, y, argb(0xffe066));
+				return face == 1 && fx == 1 ? 0x101010 : 0;
+			});
+			cube(42, 6, 6, 2, 3, new Mat(new int[]{0x8ac8a8, 0xa8e0c0}, "fur"));
+			cube(0, 17, 4, 3, 6, skinT);
+			cube(20, 17, 2, 3, 2, skinT);
+			end("shade_toad");
+
+			// Lantern Bug (wisp layout 32x32)
+			begin(32, 32, 565);
+			cube(0, 0, 6, 6, 6, new Mat(new int[]{0x3a2a10, 0x5a4018, 0x7a5a20}, "stone"), (g, x, y, face, fx, fy, fw, fh) -> {
+				if (fy >= 3) {
+					g.setRGB(x, y, argb(fy == 3 ? 0xffd060 : 0xfff0a0));
+					return fy == 3 ? 0xffd060 : 0xfff0a0;
+				}
+				if (face == 1 && fy == 1 && (fx == 1 || fx == 4)) return 0x101010;
+				return 0;
+			});
+			cube(0, 12, 2, 2, 2, new Mat(new int[]{0xc8e8ff, 0xffffff}, "crystal"));
+			cube(8, 12, 2, 4, 2, new Mat(new int[]{0xffe066, 0xfff0a0}, "crystal"), glowAll(1.0));
+			end("lantern_bug");
+
+			// Sculk Snail (64x64)
+			begin(64, 64, 566);
+			Mat foot = new Mat(new int[]{0x1a3a40, 0x24505a, 0x306a74}, "fur");
+			cube(0, 0, 6, 3, 14, foot);
+			cube(0, 17, 8, 8, 8, new Mat(SCULK_P, "stone"), (g, x, y, face, fx, fy, fw, fh) -> {
+				double d = Math.hypot(fx - fw / 2.0 + 0.5, fy - fh / 2.0 + 0.5);
+				if ((face == 2 || face == 4) && Math.abs(d - 2.5) < 0.6) {
+					g.setRGB(x, y, argb(0x5cf2ff));
+					return 0x5cf2ff;
+				}
+				return 0;
+			});
+			cube(40, 0, 1, 5, 1, foot, (g, x, y, face, fx, fy, fw, fh) -> {
+				if (fy == 0) {
+					g.setRGB(x, y, argb(0xb0ffff));
+					return 0xb0ffff;
+				}
+				return 0;
+			});
+			end("sculk_snail");
+
+			// Ember Salamander (64x64)
+			begin(64, 64, 567);
+			Mat scalesS = new Mat(new int[]{0x4a1a08, 0x7a2a0a, 0xa83c10, 0xd05a1a}, "fur", new int[]{0xffb84d, 0xffd080}, 0.06);
+			cube(0, 0, 6, 4, 14, scalesS, (g, x, y, face, fx, fy, fw, fh) -> face == 0 && fx % 3 == 0 ? 0x2a0a04 : 0);
+			cube(0, 18, 5, 4, 6, scalesS, (g, x, y, face, fx, fy, fw, fh) -> {
+				if ((face == 2 || face == 4) && fy == 1 && fx == 4) {
+					g.setRGB(x, y, argb(0xffe066));
+					return 0xffe066;
+				}
+				return 0;
+			});
+			cube(22, 18, 3, 3, 12, new Mat(EMBER, "crystal"), glowAll(0.6));
+			cube(40, 0, 4, 2, 2, scalesS);
+			end("ember_salamander");
+
+			// Void Jelly (64x64)
+			begin(64, 64, 568);
+			Mat bell = new Mat(new int[]{0x3a1a5a, 0x5a2a8a, 0x8a4ac0, 0xb07ae0, 0xd8b0ff}, "crystal", new int[]{0xf0d9ff, 0xffffff}, 0.08);
+			cube(0, 0, 12, 7, 12, bell, glowAll(0.3));
+			cube(0, 19, 8, 3, 8, new Mat(new int[]{0xff7aff, 0xffb0ff}, "crystal"), glowAll(1.0));
+			cube(48, 0, 1, 14, 1, new Mat(new int[]{0x8a4ac0, 0xd8b0ff}, "crystal"), glowAll(0.5));
+			end("void_jelly");
+
+			icon("boss_echo_warden", new int[]{0x0d3a42, 0x135058, 0x1a6a72, 0x29dfeb, 0x5cf2ff, 0xb0ffff}, SCULK_P);
 		}
 
 		static void mapIcons() throws IOException {
@@ -1594,6 +1797,171 @@ public class TextureGen {
 		}
 		set(g, 12, 3, 'h'); set(g, 13, 2, 'h'); set(g, 12, 2, 'h');
 		BufferedImage img = shadeMask(g, MAGMA_P, new int[]{0x2a4a1a, 0x3b6a2a, 0x4a8a3a, 0x5aa04a, 0x70c060, 0x90e080}, MAGMA_P);
+		return img;
+	}
+
+	// ================================================================ UPDATE 3 BLOCKS + ITEMS
+	static final int[] ECHO_BARK = {0x041418, 0x08262c, 0x0d3a42, 0x135058, 0x1a6a72};
+	static final int[] ECHO_WOOD = {0x0e4a4e, 0x146064, 0x1a787c, 0x229094, 0x2aa8ac};
+	static final int[] ECHO_LEAF = {0x0a3a40, 0x105058, 0x1a7078, 0x29a8b0, 0x5cf2ff, 0xd0ffff};
+	static final int[] ECHO_CRYSTAL = {0x0a3a4a, 0x146a80, 0x29a8c0, 0x5cdcf0, 0xb0f8ff, 0xffffff};
+	static final int[] DEEPSLATE = {0x2a2a30, 0x34343c, 0x404048, 0x4c4c56, 0x5a5a64, 0x6a6a74};
+
+	static void items3() throws IOException {
+		save(logSide(ECHO_BARK, 81), "block/echo_log");
+		save(logTop(ECHO_BARK, ECHO_WOOD, 82), "block/echo_log_top");
+		save(planks(ECHO_WOOD, 83), "block/echo_planks");
+		save(leaves(ECHO_LEAF, 84), "block/echo_leaves");
+		save(flower(new int[]{0x0a3a40, 0x105058, 0x1a7078, 0x29a8b0}, ECHO_CRYSTAL, 85), "block/echo_bloom");
+		BufferedImage deep = stone(DEEPSLATE, 86, 0.05);
+		save(ore(deep, ECHO_CRYSTAL, 87), "block/echo_crystal_ore");
+		save(crystal(ECHO_CRYSTAL, 88), "block/echo_crystal_block");
+		save(keyhole(false), "block/sculk_keyhole");
+		save(keyhole(true), "block/sculk_keyhole_filled");
+		saveAnimated(portal(new int[]{0x02181c, 0x07383e, 0x0d6a72, 0x29dfeb, 0xc0ffff}, 89, 32), "block/sculk_portal", 2);
+
+		save(key(SHADOW_STEEL, ECHO_CRYSTAL), "item/sculk_key");
+		save(shard(ECHO_CRYSTAL, 301), "item/echo_crystal");
+		save(heart(new int[]{0x0d3a42, 0x135058, 0x1a6a72, 0x29dfeb, 0x5cf2ff, 0xb0ffff}), "item/echo_heart");
+		save(sword(ECHO_CRYSTAL, SHADOW_STEEL, SHADOW_STEEL, true), "item/sonic_blade");
+		save(horn(), "item/echo_horn");
+		save(meat(new int[]{0x8a3a4a, 0xb04a5a, 0xd06a7a, 0xe890a0, 0xf8c0c8, 0xffe0e8}), "item/glimmer_venison");
+		save(meat(new int[]{0x5a2a1a, 0x7a3a22, 0x9a522e, 0xb86a3e, 0xd08a58, 0xe8b080}), "item/cooked_glimmer_venison");
+		save(antler(), "item/glimmer_antler");
+		save(fluff(), "item/cloud_fluff");
+		save(bottle(new int[]{0xc8d8ec, 0xe8f2fa, 0xffffff}), "item/cloud_bottle");
+		save(meat(new int[]{0x1a504c, 0x22665e, 0x2a8072, 0x3a9a86, 0x5ab8a0, 0x8ad8c0}), "item/toad_leg");
+		save(blob(new int[]{0x8a6a10, 0xc8a020, 0xffd060, 0xfff0a0, 0xffffff, 0xffffff}), "item/glow_jelly");
+		save(shellItem(), "item/snail_shell");
+		save(blob(new int[]{0x0a3a40, 0x105058, 0x1a7078, 0x29a8b0, 0x5cf2ff, 0xd0ffff}), "item/sculk_slime");
+		save(shard(EMBER, 302), "item/salamander_scale");
+		save(amulet(GOLD, EMBER), "item/salamander_charm");
+		save(blob(new int[]{0x3a1a5a, 0x5a2a8a, 0x8a4ac0, 0xb07ae0, 0xd8b0ff, 0xffffff}), "item/void_jelly");
+		save(egg(0x0d3a42, 0x5cf2ff), "item/echo_warden_spawn_egg");
+		save(egg(0x24383a, 0x29dfeb), "item/sculk_stalker_spawn_egg");
+		save(egg(0x9886be, 0xffffff), "item/glimmer_deer_spawn_egg");
+		save(egg(0xe8f2fa, 0xffc8dc), "item/cloud_bunny_spawn_egg");
+		save(egg(0x1a504c, 0xffe066), "item/shade_toad_spawn_egg");
+		save(egg(0x5a4018, 0xfff0a0), "item/lantern_bug_spawn_egg");
+		save(egg(0x135058, 0x5cf2ff), "item/sculk_snail_spawn_egg");
+		save(egg(0xa83c10, 0xffb84d), "item/ember_salamander_spawn_egg");
+		save(egg(0x5a2a8a, 0xff7aff), "item/void_jelly_spawn_egg");
+	}
+
+	static BufferedImage keyhole(boolean filled) {
+		BufferedImage img = stone(DEEPSLATE, 90, 0.04);
+		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
+			boolean border = x == 0 || y == 0 || x == 15 || y == 15;
+			if (border) img.setRGB(x, y, argb(0x1a1a20));
+			else if (x == 1 || y == 1) img.setRGB(x, y, argb(0x6a6a74));
+			double d = Math.hypot(x - 7.5, y - 6);
+			boolean hole = d < 2.2 || (Math.abs(x - 7.5) < 1.1 && y >= 6 && y <= 12);
+			if (hole) img.setRGB(x, y, argb(filled ? (d < 1.2 ? 0xb0ffff : 0x29dfeb) : 0x05080a));
+			else if (d < 3.4 || (Math.abs(x - 7.5) < 2.2 && y >= 6 && y <= 13)) img.setRGB(x, y, argb(filled ? 0x0d6a72 : 0x135058));
+		}
+		return img;
+	}
+
+	static BufferedImage horn() {
+		char[][] g = grid();
+		for (int i = 0; i < 12; i++) {
+			int x = 2 + i, y = 12 - (int) Math.round(Math.sin(i / 11.0 * Math.PI * 0.7) * 6);
+			int w = 1 + i / 4;
+			for (int k = 0; k < w; k++) set(g, x, y + k, i > 9 ? 'g' : 'x');
+		}
+		return shadeMask(g, BONE, BONE, ECHO_CRYSTAL);
+	}
+
+	static BufferedImage meat(int[] pal) {
+		char[][] g = parse(
+				"................",
+				"................",
+				"................",
+				"........xxxx....",
+				"......xxxxxxx...",
+				".....xxxxxxxxx..",
+				"....xxxxxxxxxx..",
+				"...xxxxxxxxxx...",
+				"..hhxxxxxxxx....",
+				".hHh.xxxxxx.....",
+				".hh.............",
+				"................");
+		return shadeMask(g, pal, BONE, pal);
+	}
+
+	static BufferedImage antler() {
+		char[][] g = parse(
+				"................",
+				"..x.......x.....",
+				"..x..x....x..x..",
+				"..xx.x....xx.x..",
+				"...xxx.....xxx..",
+				"....xx..x...xx..",
+				"....xx.xx...xx..",
+				".....xxx...xx...",
+				"......xx..xx....",
+				"......xxxxx.....",
+				".......ggg......",
+				"................");
+		BufferedImage img = shadeMask(g, new int[]{0xb0a080, 0xc8b898, 0xe0d0b0, 0xf0e4c8, 0xfff4e0, 0xffffff}, BONE, GLOWCRYSTAL);
+		glowEdge(img, 0x9ff2ff);
+		return img;
+	}
+
+	static BufferedImage fluff() {
+		BufferedImage img = img(16, 16);
+		int[][] puffs = {{6, 9, 4}, {10, 8, 3}, {8, 6, 3}, {4, 10, 2}};
+		for (int[] p : puffs) for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
+			double d = Math.hypot(x - p[0], y - p[1]);
+			if (d < p[2]) img.setRGB(x, y, argb(d < p[2] - 1.5 ? 0xffffff : (x + y) % 3 == 0 ? 0xd8e6f4 : 0xe8f2fa));
+		}
+		outline(img, 0x8aa0c0);
+		return img;
+	}
+
+	static BufferedImage bottle(int[] cloud) {
+		char[][] g = parse(
+				"................",
+				"......hhhh......",
+				".......hh.......",
+				".......xx.......",
+				"......xxxx......",
+				".....xggggx.....",
+				"....xggggggx....",
+				"....xggggggx....",
+				"....xggggggx....",
+				"....xggggggx....",
+				".....xxxxxx.....",
+				"................");
+		return shadeMask(g, new int[]{0x8ab0c8, 0xa8c8dc, 0xc8e0ee, 0xe0f0f8, 0xffffff, 0xffffff}, WOOD, cloud);
+	}
+
+	static BufferedImage blob(int[] pal) {
+		BufferedImage img = img(16, 16);
+		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
+			double d = Math.hypot((x - 7.5) / 1.2, y - 9);
+			if (d < 4.5 + Math.sin(x * 1.3) * 0.4) {
+				double l = 1 - Math.hypot(x - 5.5, y - 7) / 8.0;
+				img.setRGB(x, y, argb(pal[clamp((int) (l * 6), 0, 5)]));
+			}
+		}
+		img.setRGB(5, 7, argb(0xffffff));
+		outline(img, darken(pal[0], 0.5));
+		return img;
+	}
+
+	static BufferedImage shellItem() {
+		BufferedImage img = img(16, 16);
+		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
+			double dx = x - 7.5, dy = y - 8;
+			double r = Math.hypot(dx, dy), a = Math.atan2(dy, dx);
+			if (r < 6) {
+				double spiral = (r - (a + Math.PI) * 0.8) % 2.4;
+				boolean line = Math.abs(spiral) < 0.6;
+				img.setRGB(x, y, argb(line ? 0x5cf2ff : r < 3 ? 0x1a6a72 : 0x135058));
+			}
+		}
+		outline(img, 0x041418);
 		return img;
 	}
 

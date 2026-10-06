@@ -69,6 +69,22 @@ public final class ModBlocks {
 	public static final Block LUMEN_PORTAL = registerNoItem("lumen_portal", p -> new RealmPortalBlock(RealmDimensions.LUMEN_SKIES, p), portal(MapColor.COLOR_LIGHT_BLUE));
 	public static final Block UMBRAL_PORTAL = registerNoItem("umbral_portal", p -> new RealmPortalBlock(RealmDimensions.UMBRAL_DEPTHS, p), portal(MapColor.COLOR_PURPLE));
 
+	// ------------------------------------------------------------ Sculk Realm
+	public static final Block SCULK_PORTAL = registerNoItem("sculk_portal", p -> new RealmPortalBlock(RealmDimensions.SCULK_REALM, p), portal(MapColor.COLOR_CYAN));
+	public static final Block SCULK_KEYHOLE = register("sculk_keyhole", net.glowcube.realms.block.SculkKeyholeBlock::new,
+			BlockBehaviour.Properties.of().mapColor(MapColor.DEEPSLATE).strength(55.0F, 1200.0F).sound(SoundType.DEEPSLATE_TILES).lightLevel(s -> s.getValue(net.glowcube.realms.block.SculkKeyholeBlock.FILLED) ? 12 : 4));
+	public static final Block ECHO_LOG = register("echo_log", RotatedPillarBlock::new, Blocks.logProperties(MapColor.COLOR_CYAN, MapColor.COLOR_BLACK, SoundType.WOOD));
+	public static final Block ECHO_PLANKS = register("echo_planks", Block::new,
+			BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_CYAN).strength(2.0F, 3.0F).sound(SoundType.WOOD).ignitedByLava());
+	public static final Block ECHO_LEAVES = register("echo_leaves",
+			p -> new UntintedParticleLeavesBlock(0.05F, ParticleTypes.SCULK_SOUL, AmbientLeavesBlockSoundPlayer.noAmbientSound(), p),
+			Blocks.leavesProperties(SoundType.SCULK).mapColor(MapColor.COLOR_CYAN).lightLevel(s -> 6));
+	public static final Block ECHO_BLOOM = register("echo_bloom", p -> new FlowerBlock(MobEffects.DARKNESS, 4.0F, p), plant().lightLevel(s -> 11));
+	public static final Block ECHO_CRYSTAL_ORE = register("echo_crystal_ore", Block::new,
+			stone(MapColor.DEEPSLATE, 4.5F).sound(SoundType.DEEPSLATE).lightLevel(s -> 7));
+	public static final Block ECHO_CRYSTAL_BLOCK = register("echo_crystal_block", Block::new,
+			BlockBehaviour.Properties.of().mapColor(MapColor.COLOR_CYAN).strength(4.0F).sound(SoundType.AMETHYST).lightLevel(s -> 14).requiresCorrectToolForDrops());
+
 	public static final Block GLOWKEEPER_ALTAR = register("glowkeeper_altar", p -> new AltarBlock(AltarBlock.Boss.GLOWKEEPER, p), altar(MapColor.GOLD));
 	public static final Block TYRANT_ALTAR = register("tyrant_altar", p -> new AltarBlock(AltarBlock.Boss.UMBRAL_TYRANT, p), altar(MapColor.COLOR_BLACK));
 	public static final Block WARDEN_ALTAR = register("warden_altar", p -> new AltarBlock(AltarBlock.Boss.EMBER_WARDEN, p), altar(MapColor.NETHER));

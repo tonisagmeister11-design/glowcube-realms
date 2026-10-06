@@ -14,6 +14,7 @@ import net.glowcube.realms.client.map.MapCache;
 import net.glowcube.realms.client.map.MinimapHud;
 import net.glowcube.realms.client.map.Waypoints;
 import net.glowcube.realms.client.map.WorldMapScreen;
+import net.glowcube.realms.client.model.CreatureModels;
 import net.glowcube.realms.client.model.CrystalGolemModel;
 import net.glowcube.realms.client.model.EmberWardenModel;
 import net.glowcube.realms.client.model.GlowWispModel;
@@ -43,6 +44,13 @@ public class GlowcubeRealmsClient implements ClientModInitializer {
 	public static final ModelLayerLocation UMBRAL_TYRANT = layer("umbral_tyrant");
 	public static final ModelLayerLocation EMBER_WARDEN = layer("ember_warden");
 	public static final ModelLayerLocation WYVERN = layer("tempest_drake");
+	public static final ModelLayerLocation ECHO_WARDEN_L = layer("echo_warden");
+	public static final ModelLayerLocation DEER_L = layer("glimmer_deer");
+	public static final ModelLayerLocation BUNNY_L = layer("cloud_bunny");
+	public static final ModelLayerLocation TOAD_L = layer("shade_toad");
+	public static final ModelLayerLocation SNAIL_L = layer("sculk_snail");
+	public static final ModelLayerLocation LIZARD_L = layer("ember_salamander");
+	public static final ModelLayerLocation JELLY_L = layer("void_jelly");
 
 	private static final KeyMapping.Category CATEGORY = KeyMapping.Category.register(GlowcubeRealms.id("main"));
 	private static KeyMapping toggleMap, worldMap, addWaypoint, zoomMap;
@@ -64,8 +72,17 @@ public class GlowcubeRealmsClient implements ClientModInitializer {
 		ModelLayerRegistry.registerModelLayer(UMBRAL_TYRANT, UmbralTyrantModel::createLayer);
 		ModelLayerRegistry.registerModelLayer(EMBER_WARDEN, EmberWardenModel::createLayer);
 		ModelLayerRegistry.registerModelLayer(WYVERN, net.glowcube.realms.client.model.WyvernModel::createLayer);
-		ModelLayerRegistry.registerModelLayer(RealmGuardianRenderer.LAYER,
+		ModelLayerRegistry.registerModelLayer(ECHO_WARDEN_L, CreatureModels.EchoWardenModel::createLayer);
+		ModelLayerRegistry.registerModelLayer(DEER_L, CreatureModels.Deer::createLayer);
+		ModelLayerRegistry.registerModelLayer(BUNNY_L, CreatureModels.Bunny::createLayer);
+		ModelLayerRegistry.registerModelLayer(TOAD_L, CreatureModels.Toad::createLayer);
+		ModelLayerRegistry.registerModelLayer(SNAIL_L, CreatureModels.Snail::createLayer);
+		ModelLayerRegistry.registerModelLayer(LIZARD_L, CreatureModels.Lizard::createLayer);
+		ModelLayerRegistry.registerModelLayer(JELLY_L, CreatureModels.Jelly::createLayer);
+		ModelLayerRegistry.registerModelLayer(net.glowcube.realms.client.render.SculkStalkerRenderer.LAYER,
 				() -> LayerDefinition.create(HumanoidModel.createMesh(CubeDeformation.NONE, 0.0F), 64, 64));
+		ModelLayerRegistry.registerModelLayer(RealmGuardianRenderer.LAYER,
+				net.minecraft.client.model.monster.illager.IllagerModel::createBodyLayer);
 
 		EntityRendererRegistry.register(ModEntities.GLOW_WISP, ctx -> new RealmMobRenderer<>(ctx, new GlowWispModel(ctx.bakeLayer(GLOW_WISP)), 0.3F,
 				tex("glow_wisp"), 1.0F, true, tex("glow_wisp_glow")));
@@ -90,6 +107,23 @@ public class GlowcubeRealmsClient implements ClientModInitializer {
 		EntityRendererRegistry.register(ModEntities.TEMPEST_DRAKE, ctx -> new RealmMobRenderer<>(ctx, new net.glowcube.realms.client.model.WyvernModel(ctx.bakeLayer(WYVERN)), 1.4F,
 				tex("tempest_drake"), 1.5F, false, tex("tempest_drake_glow")));
 		EntityRendererRegistry.register(ModEntities.REALM_GUARDIAN, RealmGuardianRenderer::new);
+		EntityRendererRegistry.register(ModEntities.SCULK_STALKER, net.glowcube.realms.client.render.SculkStalkerRenderer::new);
+		EntityRendererRegistry.register(ModEntities.ECHO_WARDEN, ctx -> new RealmMobRenderer<>(ctx, new CreatureModels.EchoWardenModel(ctx.bakeLayer(ECHO_WARDEN_L)), 1.1F,
+				tex("echo_warden"), 1.15F, false, tex("echo_warden_glow")));
+		EntityRendererRegistry.register(ModEntities.GLIMMER_DEER, ctx -> new RealmMobRenderer<>(ctx, new CreatureModels.Deer(ctx.bakeLayer(DEER_L)), 0.5F,
+				tex("glimmer_deer"), 1.0F, false, tex("glimmer_deer_glow")));
+		EntityRendererRegistry.register(ModEntities.CLOUD_BUNNY, ctx -> new RealmMobRenderer<>(ctx, new CreatureModels.Bunny(ctx.bakeLayer(BUNNY_L)), 0.3F,
+				tex("cloud_bunny"), 1.0F, false, null));
+		EntityRendererRegistry.register(ModEntities.SHADE_TOAD, ctx -> new RealmMobRenderer<>(ctx, new CreatureModels.Toad(ctx.bakeLayer(TOAD_L)), 0.4F,
+				tex("shade_toad"), 1.0F, false, tex("shade_toad_glow")));
+		EntityRendererRegistry.register(ModEntities.SCULK_SNAIL, ctx -> new RealmMobRenderer<>(ctx, new CreatureModels.Snail(ctx.bakeLayer(SNAIL_L)), 0.4F,
+				tex("sculk_snail"), 1.0F, false, tex("sculk_snail_glow")));
+		EntityRendererRegistry.register(ModEntities.EMBER_SALAMANDER, ctx -> new RealmMobRenderer<>(ctx, new CreatureModels.Lizard(ctx.bakeLayer(LIZARD_L)), 0.4F,
+				tex("ember_salamander"), 1.0F, true, tex("ember_salamander_glow")));
+		EntityRendererRegistry.register(ModEntities.VOID_JELLY, ctx -> new RealmMobRenderer<>(ctx, new CreatureModels.Jelly(ctx.bakeLayer(JELLY_L)), 0.4F,
+				tex("void_jelly"), 1.0F, true, tex("void_jelly_glow")));
+		EntityRendererRegistry.register(ModEntities.LANTERN_BUG, ctx -> new RealmMobRenderer<>(ctx, new GlowWispModel(ctx.bakeLayer(GLOW_WISP)), 0.2F,
+				tex("lantern_bug"), 0.7F, true, tex("lantern_bug_glow")));
 		EntityRendererRegistry.register(ModEntities.GLOW_SHARD, ctx -> new ThrownItemRenderer<>(ctx, 1.25F, true));
 
 		HudElementRegistry.addLast(GlowcubeRealms.id("minimap"), new MinimapHud());

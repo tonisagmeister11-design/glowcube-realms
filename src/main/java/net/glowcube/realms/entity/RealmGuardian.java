@@ -63,7 +63,29 @@ public class RealmGuardian extends PathfinderMob implements RangedAttackMob {
 	}
 
 	public boolean isArcher() {
-		return this.getMainHandItem().is(Items.BOW);
+		return this.getMainHandItem().is(Items.BOW) || this.getMainHandItem().is(Items.CROSSBOW);
+	}
+
+	private static final net.minecraft.network.syncher.EntityDataAccessor<Integer> DATA_VARIANT =
+			net.minecraft.network.syncher.SynchedEntityData.defineId(RealmGuardian.class, net.minecraft.network.syncher.EntityDataSerializers.INT);
+
+	@Override
+	protected void defineSynchedData(net.minecraft.network.syncher.SynchedEntityData.Builder builder) {
+		super.defineSynchedData(builder);
+		builder.define(DATA_VARIANT, 0);
+	}
+
+	public int getVariant() {
+		return this.entityData.get(DATA_VARIANT);
+	}
+
+	public void setVariant(int v) {
+		this.entityData.set(DATA_VARIANT, v);
+	}
+
+	/** At night (or in a fight) guards draw their weapons; by day they stroll with crossed arms like villagers. */
+	public boolean isOnDuty() {
+		return this.getTarget() != null || this.isAggressive() || !this.level().isBrightOutside();
 	}
 
 	@Override
@@ -91,14 +113,19 @@ public class RealmGuardian extends PathfinderMob implements RangedAttackMob {
 			@Nullable SpawnGroupData groupData) {
 		SpawnGroupData data = super.finalizeSpawn(level, difficulty, reason, groupData);
 		this.home = this.blockPosition();
-		if (this.random.nextFloat() < 0.35F) {
-			this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.BOW));
+		float roll = this.random.nextFloat();
+		if (roll < 0.4F) {
+			this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.CROSSBOW));
+		} else if (roll < 0.55F) {
+			this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_AXE));
 		} else {
 			this.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(this.random.nextFloat() < 0.15F ? Items.DIAMOND_SWORD : Items.IRON_SWORD));
-			this.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.SHIELD));
 		}
-		this.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
-		this.setItemSlot(EquipmentSlot.CHEST, new ItemStack(Items.CHAINMAIL_CHESTPLATE));
+		// some guards wear armor (painted on their uniform texture as well)
+		int armor = this.random.nextInt(3);
+		this.setVariant(armor);
+		if (armor >= 1) this.setItemSlot(EquipmentSlot.CHEST, new ItemStack(armor == 2 ? Items.IRON_CHESTPLATE : Items.CHAINMAIL_CHESTPLATE));
+		if (armor == 2) this.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.IRON_HELMET));
 		for (EquipmentSlot slot : EquipmentSlot.values()) this.setDropChance(slot, 0.0F);
 		this.setPersistenceRequired();
 		return data;
@@ -130,12 +157,14 @@ public class RealmGuardian extends PathfinderMob implements RangedAttackMob {
 	protected void addAdditionalSaveData(ValueOutput output) {
 		super.addAdditionalSaveData(output);
 		if (this.home != null) output.store("Home", BlockPos.CODEC, this.home);
+		output.putInt("Variant", this.getVariant());
 	}
 
 	@Override
 	protected void readAdditionalSaveData(ValueInput input) {
 		super.readAdditionalSaveData(input);
 		this.home = input.read("Home", BlockPos.CODEC).orElse(null);
+		this.setVariant(input.getIntOr("Variant", 0));
 	}
 
 	@Override

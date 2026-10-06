@@ -74,11 +74,53 @@ public final class GearEvents {
 				player.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, 1200, 0));
 			}
 		});
+		// opening the Sculk Reliquary wakes the Echo Warden five blocks away
+		net.fabricmc.fabric.api.event.player.UseBlockCallback.EVENT.register((player, level, hand, hit) -> {
+			if (level instanceof ServerLevel server && !player.isSpectator()
+					&& server.getBlockEntity(hit.getBlockPos()) instanceof ChestBlockEntity chest
+					&& SCULK_RELIQUARY.equals(chest.getLootTable())) {
+				spawnEchoWarden(server, hit.getBlockPos(), player);
+			}
+			return net.minecraft.world.InteractionResult.PASS;
+		});
 		ServerPlayNetworking.registerGlobalReceiver(LeftClickPayload.TYPE, (payload, context) -> {
 			ServerPlayer player = context.player();
 			ItemStack stack = player.getMainHandItem();
 			if (stack.getItem() instanceof LeftClickAbility ability) ability.onLeftClick(player, stack);
 		});
+	}
+
+	public static final net.minecraft.resources.ResourceKey<net.minecraft.world.level.storage.loot.LootTable> SCULK_RELIQUARY = net.minecraft.resources.ResourceKey.create(
+			net.minecraft.core.registries.Registries.LOOT_TABLE, net.glowcube.realms.GlowcubeRealms.id("chests/sculk_reliquary"));
+
+	private static void spawnEchoWarden(ServerLevel level, BlockPos chest, Player opener) {
+		net.glowcube.realms.entity.boss.EchoWarden boss = net.glowcube.realms.registry.ModEntities.ECHO_WARDEN.create(level,
+				net.minecraft.world.entity.EntitySpawnReason.TRIGGERED);
+		if (boss == null) return;
+		BlockPos spawn = null;
+		for (Direction d : new Direction[]{Direction.SOUTH, Direction.NORTH, Direction.EAST, Direction.WEST}) {
+			BlockPos p = chest.relative(d, 5);
+			for (int dy = 2; dy >= -3 && spawn == null; dy--) {
+				BlockPos q = p.above(dy);
+				if (level.getBlockState(q.below()).isSolid() && level.getBlockState(q).isAir() && level.getBlockState(q.above()).isAir()
+						&& level.getBlockState(q.above(2)).isAir()) spawn = q;
+			}
+			if (spawn != null) break;
+		}
+		if (spawn == null) spawn = chest.above();
+		boss.snapTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5, 0, 0);
+		boss.setHome(chest);
+		boss.setTarget(opener);
+		boss.setPersistenceRequired();
+		level.addFreshEntity(boss);
+		level.sendParticles(ParticleTypes.SCULK_SOUL, spawn.getX() + 0.5, spawn.getY() + 1, spawn.getZ() + 0.5, 80, 0.6, 1.2, 0.6, 0.05);
+		level.playSound(null, spawn, SoundEvents.WARDEN_EMERGE, SoundSource.HOSTILE, 3.0F, 0.8F);
+		for (ServerPlayer p : level.getPlayers(p -> p.distanceToSqr(chest.getX(), chest.getY(), chest.getZ()) < 48 * 48)) {
+			p.connection.send(new net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket(
+					Component.translatable("boss.glowcube_realms.echo_warden.awakens").withStyle(ChatFormatting.DARK_AQUA, ChatFormatting.BOLD)));
+			p.connection.send(new net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket(
+					Component.translatable("boss.glowcube_realms.echo_warden.subtitle").withStyle(ChatFormatting.AQUA)));
+		}
 	}
 
 	public static boolean wearsStarmetal(Player p) {

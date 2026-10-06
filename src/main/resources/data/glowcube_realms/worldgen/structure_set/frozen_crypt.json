@@ -1,1 +1,1 @@
-{"placement":{"type":"minecraft:random_spread","salt":8812345,"separation":12,"spacing":32},"structures":[{"structure":"glowcube_realms:frozen_crypt","weight":1}]}
+{"placement":{"type":"minecraft:random_spread","salt":8812345,"separation":9,"spacing":24},"structures":[{"structure":"glowcube_realms:frozen_crypt","weight":1}]}

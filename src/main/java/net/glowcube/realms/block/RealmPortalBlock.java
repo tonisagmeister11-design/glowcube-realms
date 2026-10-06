@@ -49,7 +49,14 @@ public class RealmPortalBlock extends Block implements Portal {
 	}
 
 	public Block frameBlock() {
+		if (this.realm == net.glowcube.realms.world.RealmDimensions.SCULK_REALM) return Blocks.REINFORCED_DEEPSLATE;
 		return this.realm == net.glowcube.realms.world.RealmDimensions.LUMEN_SKIES ? Blocks.GLOWSTONE : Blocks.CRYING_OBSIDIAN;
+	}
+
+	/** Sculk gates (also the Ancient City frame) may be framed by any solid block. */
+	private boolean isFrame(BlockState state) {
+		if (this.realm == net.glowcube.realms.world.RealmDimensions.SCULK_REALM) return !state.isAir() && !state.canBeReplaced();
+		return state.is(this.frameBlock());
 	}
 
 	@Override
@@ -67,7 +74,7 @@ public class RealmPortalBlock extends Block implements Portal {
 			BlockPos neighbourPos, BlockState neighbourState, RandomSource random) {
 		Direction.Axis axis = state.getValue(AXIS);
 		boolean inPlane = dir.getAxis() == axis || dir.getAxis() == Direction.Axis.Y;
-		if (inPlane && !neighbourState.is(this) && !neighbourState.is(this.frameBlock())) {
+		if (inPlane && !neighbourState.is(this) && !this.isFrame(neighbourState)) {
 			return Blocks.AIR.defaultBlockState();
 		}
 		return super.updateShape(state, level, ticks, pos, dir, neighbourPos, neighbourState, random);
@@ -109,7 +116,8 @@ public class RealmPortalBlock extends Block implements Portal {
 			double y = pos.getY() + random.nextDouble();
 			double z = pos.getZ() + random.nextDouble();
 			double dx = (random.nextFloat() - 0.5) * 0.4, dy = (random.nextFloat() - 0.5) * 0.4, dz = (random.nextFloat() - 0.5) * 0.4;
-			level.addParticle(this.realm == net.glowcube.realms.world.RealmDimensions.LUMEN_SKIES ? ParticleTypes.END_ROD : ParticleTypes.REVERSE_PORTAL,
+			level.addParticle(this.realm == net.glowcube.realms.world.RealmDimensions.SCULK_REALM ? ParticleTypes.SCULK_SOUL
+					: this.realm == net.glowcube.realms.world.RealmDimensions.LUMEN_SKIES ? ParticleTypes.END_ROD : ParticleTypes.REVERSE_PORTAL,
 					x, y, z, dx * 0.2, dy * 0.2, dz * 0.2);
 		}
 	}

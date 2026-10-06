@@ -32,6 +32,10 @@ public final class ModWorldgen {
 		BiomeModifications.addFeature(BiomeSelectors.tag(BiomeTags.IS_TAIGA), GenerationStep.Decoration.VEGETAL_DECORATION, placed("giant_spruce"));
 		BiomeModifications.addFeature(BiomeSelectors.foundInOverworld(), GenerationStep.Decoration.UNDERGROUND_DECORATION, placed("umbral_rift"));
 		BiomeModifications.addFeature(BiomeSelectors.foundInOverworld(), GenerationStep.Decoration.SURFACE_STRUCTURES, placed("lumen_gate"));
+
+		// creatures for the vanilla dimensions
+		BiomeModifications.addSpawn(BiomeSelectors.foundInTheNether(), net.minecraft.world.entity.MobCategory.CREATURE, ModEntities.EMBER_SALAMANDER, 40, 1, 3);
+		BiomeModifications.addSpawn(BiomeSelectors.foundInTheEnd(), net.minecraft.world.entity.MobCategory.AMBIENT, ModEntities.VOID_JELLY, 30, 1, 2);
 	}
 
 	private static ResourceKey<PlacedFeature> placed(String name) {

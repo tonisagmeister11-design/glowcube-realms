@@ -135,7 +135,8 @@ public final class RealmEvents {
 			{"minecraft:overworld", "ember_citadel", "ember_warden", "64"},
 			{"minecraft:overworld", "frozen_crypt", "frost_lich", "64"},
 			{"minecraft:the_nether", "molten_forge", "infernal_colossus", "64"},
-			{"minecraft:the_end", "astral_spire", "void_herald", "64"}};
+			{"minecraft:the_end", "astral_spire", "void_herald", "64"},
+			{"minecraft:overworld", "sculk_sanctuary", "echo_warden", "-40"}};
 
 	private static void locateArenas(ServerPlayer player) {
 		if (!(player.level() instanceof ServerLevel level)) return;
@@ -153,23 +154,38 @@ public final class RealmEvents {
 		}
 	}
 
-	/** Villages with enough villagers get Realm Guardians that defend them. */
-	private static void guardVillages(ServerPlayer player) {
+	/** Natural villages (counted from their bell) fill up to about 20 villagers, keep an iron golem and get Realm Guardians that defend them. */
+	static void guardVillages(ServerPlayer player) {
 		if (!(player.level() instanceof ServerLevel level) || level.dimension() != Level.OVERWORLD) return;
-		List<Villager> villagers = level.getEntitiesOfClass(Villager.class, new AABB(player.blockPosition()).inflate(48, 24, 48));
+		java.util.Optional<BlockPos> bell = level.getPoiManager().findClosest(poi -> poi.is(net.minecraft.world.entity.ai.village.poi.PoiTypes.MEETING),
+				player.blockPosition(), 64, net.minecraft.world.entity.ai.village.poi.PoiManager.Occupancy.ANY);
+		if (bell.isEmpty()) return;
+		AABB area = new AABB(bell.get()).inflate(80, 32, 80);
+		List<Villager> villagers = level.getEntitiesOfClass(Villager.class, area);
 		if (villagers.size() < 3) return;
 		Villager anchor = villagers.get(level.getRandom().nextInt(villagers.size()));
-		int guards = level.getEntitiesOfClass(RealmGuardian.class, new AABB(anchor.blockPosition()).inflate(40, 20, 40)).size();
-		int wanted = Math.min(4, 1 + villagers.size() / 4);
-		if (guards >= wanted) return;
 		BlockPos at = anchor.blockPosition().offset(level.getRandom().nextInt(9) - 4, 0, level.getRandom().nextInt(9) - 4);
 		at = new BlockPos(at.getX(), level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, at.getX(), at.getZ()), at.getZ());
 		if (at.distSqr(player.blockPosition()) < 10 * 10) return;
-		RealmGuardian guard = ModEntities.REALM_GUARDIAN.create(level, EntitySpawnReason.EVENT);
-		if (guard == null) return;
-		guard.snapTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, level.getRandom().nextFloat() * 360, 0);
-		guard.finalizeSpawn(level, level.getCurrentDifficultyAt(at), EntitySpawnReason.EVENT, null);
-		level.addFreshEntity(guard);
+		// one action per check: villagers first, then the golem, then guards; dead guards are replaced over time like iron golems
+		if (villagers.size() < 20) {
+			spawn(level, net.minecraft.world.entity.EntityTypes.VILLAGER.create(level, EntitySpawnReason.BREEDING), at);
+			return;
+		}
+		if (level.getEntitiesOfClass(net.minecraft.world.entity.animal.golem.IronGolem.class, area).isEmpty()) {
+			spawn(level, net.minecraft.world.entity.EntityTypes.IRON_GOLEM.create(level, EntitySpawnReason.MOB_SUMMONED), at);
+			return;
+		}
+		int guards = level.getEntitiesOfClass(RealmGuardian.class, area).size();
+		int wanted = Math.max(4, Math.min(9, 2 + villagers.size() / 3));
+		if (guards < wanted) spawn(level, ModEntities.REALM_GUARDIAN.create(level, EntitySpawnReason.EVENT), at);
+	}
+
+	private static void spawn(ServerLevel level, net.minecraft.world.entity.Mob mob, BlockPos at) {
+		if (mob == null) return;
+		mob.snapTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, level.getRandom().nextFloat() * 360, 0);
+		mob.finalizeSpawn(level, level.getCurrentDifficultyAt(at), EntitySpawnReason.EVENT, null);
+		level.addFreshEntity(mob);
 	}
 
 	private RealmEvents() {

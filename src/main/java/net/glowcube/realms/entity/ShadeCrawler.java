@@ -34,9 +34,9 @@ public class ShadeCrawler extends Monster {
 
 	public static AttributeSupplier.Builder createAttributes() {
 		return Monster.createMonsterAttributes()
-				.add(Attributes.MAX_HEALTH, 26.0)
-				.add(Attributes.MOVEMENT_SPEED, 0.36)
-				.add(Attributes.ATTACK_DAMAGE, 6.0)
+				.add(Attributes.MAX_HEALTH, 20.0)
+				.add(Attributes.MOVEMENT_SPEED, 0.3)
+				.add(Attributes.ATTACK_DAMAGE, 3.5)
 				.add(Attributes.ARMOR, 2.0)
 				.add(Attributes.FOLLOW_RANGE, 32.0);
 	}

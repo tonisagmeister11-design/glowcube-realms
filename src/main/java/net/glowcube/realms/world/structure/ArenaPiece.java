@@ -64,6 +64,7 @@ public class ArenaPiece extends StructurePiece {
 					Blocks.CHISELED_DEEPSLATE.defaultBlockState(), Blocks.BONE_BLOCK.defaultBlockState(), Blocks.SOUL_LANTERN.defaultBlockState(), false,
 					ModBlocks.KING_ALTAR.defaultBlockState(), "hollow_crypt");
 			case "void_herald" -> this.buildSpire(level, chunkBB, random);
+			case "echo_warden" -> this.buildSculkSanctuary(level, chunkBB, random);
 			case "frost_lich" -> this.buildFrozenCrypt(level, chunkBB, random);
 			case "tempest_drake" -> this.buildAerie(level, chunkBB, random);
 			default -> this.buildShrine(level, chunkBB, random);
@@ -363,6 +364,52 @@ public class ArenaPiece extends StructurePiece {
 		this.altar(level, bb, ModBlocks.DRAKE_ALTAR.defaultBlockState());
 		this.chest(level, bb, random, -3, 1, -9, "storm_aerie");
 		this.chest(level, bb, random, 3, 1, -9, "storm_aerie");
+	}
+
+	// ------------------------------------------------------------------ Sculk Sanctuary (Deep Dark)
+	private void buildSculkSanctuary(WorldGenLevel level, BoundingBox bb, RandomSource random) {
+		int r = 9;
+		BlockState tiles = Blocks.DEEPSLATE_TILES.defaultBlockState();
+		BlockState bricks = Blocks.DEEPSLATE_BRICKS.defaultBlockState();
+		BlockState sculk = Blocks.SCULK.defaultBlockState();
+		BlockState frame = Blocks.REINFORCED_DEEPSLATE.defaultBlockState();
+		for (int dx = -r - 1; dx <= r + 1; dx++) for (int dz = -r - 1; dz <= r + 1; dz++) {
+			double d = Math.hypot(dx, dz);
+			for (int dy = -2; dy <= 10; dy++) {
+				double d3 = Math.sqrt(dx * dx + dz * dz + (dy * 1.15) * (dy * 1.15));
+				if (dy > 0 && d3 < r) this.set(level, bb, dx, dy, dz, Blocks.AIR.defaultBlockState());
+				else if (dy > 0 && d3 < r + 1.3) this.set(level, bb, dx, dy, dz, noise(dx * 7 + dy, dz * 5) > 0.6 ? sculk : bricks);
+			}
+			if (d > r + 1) continue;
+			this.set(level, bb, dx, 0, dz, d < 2 ? Blocks.CHISELED_DEEPSLATE.defaultBlockState() : noise(dx, dz) > 0.55 ? sculk : tiles);
+			for (int dy = 1; dy <= 2; dy++) this.set(level, bb, dx, -dy, dz, bricks);
+		}
+		// tunnels so the sanctuary connects to the surrounding caves
+		for (int sign : new int[]{-1, 1}) {
+			for (int t = r - 1; t <= r + 22; t++) {
+				for (int w = -1; w <= 1; w++) for (int dy = 1; dy <= 3; dy++) this.set(level, bb, sign * t, dy, w, Blocks.AIR.defaultBlockState());
+				this.set(level, bb, sign * t, 0, 0, tiles);
+				if (t % 6 == 0) this.set(level, bb, sign * t, 3, 1, Blocks.SOUL_LANTERN.defaultBlockState());
+			}
+		}
+		// the sculk gate: reinforced deepslate frame with the keyhole in the middle of the bottom row
+		for (int dx = -2; dx <= 2; dx++) for (int dy = 1; dy <= 6; dy++) {
+			boolean edge = Math.abs(dx) == 2 || dy == 1 || dy == 6;
+			this.set(level, bb, dx, dy, -5, edge ? frame : Blocks.AIR.defaultBlockState());
+		}
+		this.set(level, bb, 0, 1, -5, net.glowcube.realms.registry.ModBlocks.SCULK_KEYHOLE.defaultBlockState());
+		for (int dx = -3; dx <= 3; dx++) this.set(level, bb, dx, 0, -5, Blocks.CHISELED_DEEPSLATE.defaultBlockState());
+		// glowing pillars and sculk decorations
+		for (int[] p : new int[][]{{-5, -2}, {5, -2}, {-4, 4}, {4, 4}}) {
+			for (int dy = 1; dy <= 4; dy++) this.set(level, bb, p[0], dy, p[1], dy == 4 ? Blocks.SCULK_CATALYST.defaultBlockState() : Blocks.POLISHED_DEEPSLATE_WALL.defaultBlockState());
+			this.set(level, bb, p[0], 5, p[1], Blocks.SOUL_LANTERN.defaultBlockState());
+		}
+		this.set(level, bb, -2, 1, 3, Blocks.SCULK_SHRIEKER.defaultBlockState());
+		this.set(level, bb, 2, 1, 3, Blocks.SCULK_SHRIEKER.defaultBlockState());
+		this.set(level, bb, -1, 1, 4, Blocks.SCULK_SENSOR.defaultBlockState());
+		this.set(level, bb, 1, 1, 4, Blocks.SCULK_SENSOR.defaultBlockState());
+		this.set(level, bb, 0, 0, 3, Blocks.CHISELED_DEEPSLATE.defaultBlockState());
+		this.chest(level, bb, random, 0, 1, 3, "sculk_reliquary");
 	}
 
 	// ------------------------------------------------------------------ Glowcube Shrine (Overworld)

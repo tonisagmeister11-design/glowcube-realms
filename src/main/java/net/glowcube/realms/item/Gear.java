@@ -620,6 +620,113 @@ public final class Gear {
 		}
 	}
 
+	// ------------------------------------------------------------------ update 3
+	/** Sonic Blade: right-click fires a warden sonic boom that ignores armor. */
+	public static class SonicBlade extends LoreItem {
+		public SonicBlade(Properties p) {
+			super(p);
+		}
+
+		@Override
+		public void postHurtEnemy(ItemStack stack, LivingEntity target, LivingEntity attacker) {
+			super.postHurtEnemy(stack, target, attacker);
+			target.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 40, 0));
+		}
+
+		@Override
+		public InteractionResult use(Level level, Player player, InteractionHand hand) {
+			ItemStack stack = player.getItemInHand(hand);
+			if (!ready(player, stack)) return InteractionResult.FAIL;
+			if (level instanceof ServerLevel server) {
+				Vec3 from = player.getEyePosition();
+				Vec3 dir = player.getLookAngle();
+				List<LivingEntity> hit = new ArrayList<>();
+				for (int i = 1; i <= 18; i++) {
+					Vec3 p = from.add(dir.scale(i));
+					server.sendParticles(ParticleTypes.SONIC_BOOM, p.x, p.y, p.z, 1, 0, 0, 0, 0);
+					for (LivingEntity e : Abilities.targets(server, p, 1.4, player)) {
+						if (hit.contains(e)) continue;
+						hit.add(e);
+						e.hurtServer(server, server.damageSources().sonicBoom(player), 12.0F);
+						Abilities.push(e, player.position(), 1.2, 0.3);
+					}
+				}
+				server.playSound(null, player.blockPosition(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 1.2F, 1.2F);
+			}
+			finish(player, stack, hand, 120, 3);
+			return InteractionResult.SUCCESS;
+		}
+	}
+
+	/** Echo Horn: right-click shrieks - enemies around go dark, weak and glowing. */
+	public static class EchoHorn extends LoreItem {
+		public EchoHorn(Properties p) {
+			super(p);
+		}
+
+		@Override
+		public InteractionResult use(Level level, Player player, InteractionHand hand) {
+			ItemStack stack = player.getItemInHand(hand);
+			if (!ready(player, stack)) return InteractionResult.FAIL;
+			if (level instanceof ServerLevel server) {
+				for (LivingEntity e : Abilities.targets(server, player.position(), 16.0, player)) {
+					e.addEffect(new MobEffectInstance(MobEffects.GLOWING, 300, 0));
+					e.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 200, 1));
+					e.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 100, 1));
+				}
+				for (int r = 2; r <= 12; r += 2) Abilities.ring(server, ParticleTypes.SCULK_SOUL, player.position().add(0, 1, 0), r, r * 5);
+				server.playSound(null, player.blockPosition(), SoundEvents.SCULK_SHRIEKER_SHRIEK, SoundSource.PLAYERS, 1.5F, 1.0F);
+			}
+			finish(player, stack, hand, 400, 1);
+			return InteractionResult.SUCCESS;
+		}
+	}
+
+	/** Cloud in a Bottle: right-click for a mid-air double jump. */
+	public static class CloudBottle extends LoreItem {
+		public CloudBottle(Properties p) {
+			super(p);
+		}
+
+		@Override
+		public InteractionResult use(Level level, Player player, InteractionHand hand) {
+			ItemStack stack = player.getItemInHand(hand);
+			if (!ready(player, stack)) return InteractionResult.FAIL;
+			Vec3 look = player.getLookAngle();
+			player.setDeltaMovement(look.x * 0.5, 0.9, look.z * 0.5);
+			player.fallDistance = 0;
+			if (level instanceof ServerLevel server) {
+				server.sendParticles(ParticleTypes.CLOUD, player.getX(), player.getY(), player.getZ(), 20, 0.4, 0.1, 0.4, 0.02);
+				if (player instanceof ServerPlayer sp) sp.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(sp));
+				server.playSound(null, player.blockPosition(), SoundEvents.WOOL_PLACE, SoundSource.PLAYERS, 1.0F, 1.6F);
+			}
+			finish(player, stack, hand, 30, 1);
+			return InteractionResult.SUCCESS;
+		}
+	}
+
+	/** Salamander Charm: right-click for a minute of fire immunity and fiery fists. */
+	public static class SalamanderCharm extends LoreItem {
+		public SalamanderCharm(Properties p) {
+			super(p);
+		}
+
+		@Override
+		public InteractionResult use(Level level, Player player, InteractionHand hand) {
+			ItemStack stack = player.getItemInHand(hand);
+			if (!ready(player, stack)) return InteractionResult.FAIL;
+			player.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 1200, 0));
+			player.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 600, 0));
+			player.clearFire();
+			if (level instanceof ServerLevel server) {
+				server.sendParticles(ParticleTypes.FLAME, player.getX(), player.getY(1), player.getZ(), 30, 0.4, 0.6, 0.4, 0.02);
+				server.playSound(null, player.blockPosition(), SoundEvents.FIRECHARGE_USE, SoundSource.PLAYERS, 1.0F, 1.4F);
+			}
+			finish(player, stack, hand, 1200, 1);
+			return InteractionResult.SUCCESS;
+		}
+	}
+
 	/** Tools with area mining - the actual block breaking happens in RealmEvents. */
 	public static class Excavator extends LoreItem {
 		public Excavator(Properties p) {
