@@ -107,6 +107,7 @@ public class GlowcubeRealmsClient implements ClientModInitializer {
 		EntityRendererRegistry.register(ModEntities.TEMPEST_DRAKE, ctx -> new RealmMobRenderer<>(ctx, new net.glowcube.realms.client.model.WyvernModel(ctx.bakeLayer(WYVERN)), 1.4F,
 				tex("tempest_drake"), 1.5F, false, tex("tempest_drake_glow")));
 		EntityRendererRegistry.register(ModEntities.REALM_GUARDIAN, RealmGuardianRenderer::new);
+		EntityRendererRegistry.register(ModEntities.REALM_TRADER, net.glowcube.realms.client.render.RealmTraderRenderer::new);
 		EntityRendererRegistry.register(ModEntities.SCULK_STALKER, net.glowcube.realms.client.render.SculkStalkerRenderer::new);
 		EntityRendererRegistry.register(ModEntities.ECHO_WARDEN, ctx -> new RealmMobRenderer<>(ctx, new CreatureModels.EchoWardenModel(ctx.bakeLayer(ECHO_WARDEN_L)), 1.1F,
 				tex("echo_warden"), 1.15F, false, tex("echo_warden_glow")));
@@ -152,6 +153,9 @@ public class GlowcubeRealmsClient implements ClientModInitializer {
 	private static void tick(Minecraft mc) {
 		if (mc.player == null) return;
 		MapCache.tick(mc);
+		// cloud vents: the own player is moved on the client, so the updraft feels smooth
+		int vent = net.glowcube.realms.block.CloudVentBlock.ventHeight(mc.player.level(), mc.player);
+		if (vent >= 0 && !mc.player.getAbilities().flying && !mc.player.isShiftKeyDown()) net.glowcube.realms.block.CloudVentBlock.lift(mc.player, vent);
 		while (toggleMap.consumeClick()) MinimapHud.enabled = !MinimapHud.enabled;
 		while (zoomMap.consumeClick()) MinimapHud.cycleZoom();
 		while (worldMap.consumeClick()) mc.gui.setScreen(new WorldMapScreen());

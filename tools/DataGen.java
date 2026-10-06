@@ -45,6 +45,7 @@ public class DataGen {
 		Update2.all();
 		Update3.all();
 		Update4.all();
+		Update5.all();
 		flushTags();
 		System.out.println("Data written.");
 	}
@@ -276,6 +277,7 @@ public class DataGen {
 		}
 		Update2.lang(t);
 		Update3.lang(t);
+		Update5.lang(t);
 		StringBuilder en = new StringBuilder("{\n"), de = new StringBuilder("{\n");
 		int n = 0;
 		for (Map.Entry<String, String[]> entry : t.entrySet()) {
@@ -1460,6 +1462,62 @@ public class DataGen {
 			String pools = "{\"entries\":[" + String.join(",", list) + "],\"rolls\":{\"type\":\"minecraft:uniform\",\"max\":7,\"min\":4}}";
 			if (vanilla != null) pools += ",{\"entries\":[{\"type\":\"minecraft:loot_table\",\"value\":\"" + vanilla + "\"}],\"rolls\":1}";
 			write(DATA.resolve("loot_table/chests/" + name + ".json"), "{\"type\":\"minecraft:chest\",\"pools\":[" + pools + "],\"random_sequence\":\"" + NS + ":chests/" + name + "\"}");
+		}
+	}
+
+	// ================================================================ UPDATE 5: realm places, traders, cloud vents
+	static class Update5 {
+		static final String LUMEN = "[\"" + NS + ":lumen_meadows\",\"" + NS + ":aurora_forest\",\"" + NS + ":crystal_peaks\"]";
+		static final String UMBRAL = "[\"" + NS + ":umbral_caverns\",\"" + NS + ":shadecap_forest\",\"" + NS + ":void_rift\"]";
+		static final String SCULK = "[\"" + NS + ":sculk_plains\",\"" + NS + ":echo_forest\",\"" + NS + ":sculk_spires\"]";
+
+		static void all() throws IOException {
+			place("sky_market", "sky_market", LUMEN, "surface_structures", 150, 30, 11, 5501701);
+			place("sky_ruin", "sky_ruin", LUMEN, "surface_structures", 175, 11, 4, 5501702);
+			place("shadow_bazaar", "shadow_bazaar", UMBRAL, "underground_structures", 40, 26, 9, 5501703);
+			place("umbral_mine", "umbral_mine", UMBRAL, "underground_structures", 22, 18, 7, 5501704);
+			place("echo_camp", "echo_camp", SCULK, "surface_structures", null, 18, 6, 5501705);
+			place("echo_ruin", "echo_ruin", SCULK, "surface_structures", null, 16, 6, 5501706);
+			Update4.treasure("sky_market", null, new Object[][]{{NS + ":lumen_berries", 14, 2, 6}, {NS + ":glow_shard", 14, 2, 6}, {NS + ":cloud_fluff", 10, 1, 4},
+					{"minecraft:emerald", 10, 1, 4}, {NS + ":aurora_fruit", 6, 1, 3}, {"minecraft:feather", 8, 2, 6}, {"minecraft:phantom_membrane", 4, 1, 2},
+					{NS + ":cloud_vent", 4, 1, 2}, {NS + ":lumen_compass", 2, 1, 1}});
+			Update4.treasure("sky_ruin", null, new Object[][]{{NS + ":glow_shard", 16, 2, 7}, {NS + ":starmetal_ingot", 6, 1, 2}, {NS + ":wisp_essence", 8, 1, 3},
+					{"minecraft:diamond", 4, 1, 2}, {"minecraft:emerald", 10, 2, 5}, {NS + ":cloud_bottle", 2, 1, 1}, {NS + ":lumen_key", 3, 1, 1},
+					{"minecraft:golden_apple", 4, 1, 1}, {NS + ":cloud_vent", 5, 1, 2}});
+			Update4.treasure("shadow_bazaar", null, new Object[][]{{NS + ":void_shard", 14, 2, 6}, {NS + ":shadecap_stew", 6, 1, 2}, {NS + ":shade_fang", 10, 1, 4},
+					{"minecraft:emerald", 10, 1, 4}, {"minecraft:soul_lantern", 8, 1, 4}, {NS + ":umbral_compass", 2, 1, 1}, {"minecraft:ender_pearl", 5, 1, 3}});
+			Update4.treasure("umbral_mine", "minecraft:chests/abandoned_mineshaft", new Object[][]{{NS + ":void_shard", 16, 2, 8}, {"minecraft:iron_ingot", 12, 2, 6},
+					{"minecraft:gold_ingot", 8, 1, 4}, {"minecraft:diamond", 4, 1, 2}, {"minecraft:rail", 10, 4, 12}, {"minecraft:torch", 10, 4, 16},
+					{NS + ":voidshard_pickaxe", 1, 1, 1}, {NS + ":excavator_pickaxe", 1, 1, 1}, {"minecraft:tnt", 4, 1, 3}});
+			Update4.treasure("echo_camp", null, new Object[][]{{NS + ":echo_crystal", 12, 1, 4}, {NS + ":glow_jelly", 8, 1, 3}, {"minecraft:bread", 12, 2, 5},
+					{"minecraft:emerald", 10, 1, 4}, {"minecraft:map", 4, 1, 1}, {"minecraft:compass", 3, 1, 1}, {"minecraft:candle", 8, 1, 4}});
+			Update4.treasure("echo_ruin", "minecraft:chests/ancient_city", new Object[][]{{NS + ":echo_crystal", 16, 2, 6}, {"minecraft:echo_shard", 10, 1, 3},
+					{NS + ":sculk_key", 2, 1, 1}, {"minecraft:disc_fragment_5", 6, 1, 3}, {"minecraft:silence_armor_trim_smithing_template", 2, 1, 1},
+					{NS + ":echo_crystal_block", 3, 1, 1}, {"minecraft:experience_bottle", 6, 1, 4}});
+			// cloud vent block
+			write(ASSETS.resolve("models/block/cloud_vent.json"), "{\"parent\":\"minecraft:block/cube_bottom_top\",\"textures\":{\"top\":\"" + NS
+					+ ":block/cloud_vent_top\",\"bottom\":\"" + NS + ":block/skystone_bricks\",\"side\":\"" + NS + ":block/cloud_vent_side\"}}");
+			write(ASSETS.resolve("blockstates/cloud_vent.json"), "{\"variants\":{\"\":{\"model\":\"" + NS + ":block/cloud_vent\"}}}");
+			blockItem("cloud_vent");
+			write(DATA.resolve("loot_table/blocks/cloud_vent.json"), "{\"type\":\"minecraft:block\",\"pools\":[{\"condition\":{\"type\":\"minecraft:survives_explosion\"},"
+					+ "\"entries\":[{\"type\":\"minecraft:item\",\"name\":\"" + NS + ":cloud_vent\"}],\"rolls\":1}],\"random_sequence\":\"" + NS + ":blocks/cloud_vent\"}");
+			shaped("cloud_vent", 2, new String[]{"FFF", "SGS", "SSS"}, "F", NS + ":cloud_fluff", "S", NS + ":skystone_bricks", "G", NS + ":glow_shard");
+			write(ASSETS.resolve("models/item/realm_trader_spawn_egg.json"), "{\"parent\":\"minecraft:item/generated\",\"textures\":{\"layer0\":\"" + NS + ":item/realm_trader_spawn_egg\"}}");
+			itemDef("realm_trader_spawn_egg", NS + ":item/realm_trader_spawn_egg");
+		}
+
+		static void place(String name, String kind, String biomes, String step, Integer fixedY, int spacing, int separation, int salt) throws IOException {
+			write(DATA.resolve("worldgen/structure/" + name + ".json"), "{\"type\":\"" + NS + ":grand\",\"biomes\":" + biomes + ",\"kind\":\"" + kind + "\","
+					+ (fixedY != null ? "\"fixed_y\":" + fixedY + "," : "") + "\"spawn_overrides\":{},\"step\":\"" + step + "\",\"terrain_adaptation\":\"none\"}");
+			structureSet(name, spacing, separation, salt);
+		}
+
+		static void lang(Map<String, String[]> t) {
+			b(t, "cloud_vent", "Cloud Vent", "Wolkendüse");
+			e(t, "realm_trader", "Realm Trader", "Reichshändler");
+			i(t, "realm_trader_spawn_egg", "Realm Trader Spawn Egg", "Reichshändler-Spawn-Ei", null, null);
+			t.put("block." + NS + ".cloud_vent.lore1", new String[]{"Carries you up to 24 blocks into the sky. Sneak to stand on it.",
+					"Trägt dich bis zu 24 Blöcke in den Himmel. Schleichen, um darauf zu stehen."});
 		}
 	}
 }

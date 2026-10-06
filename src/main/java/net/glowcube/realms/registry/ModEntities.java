@@ -29,6 +29,8 @@ public final class ModEntities {
 			EntityType.Builder.of(CrystalGolem::new, MobCategory.MONSTER).sized(1.3F, 2.4F).clientTrackingRange(10));
 	public static final EntityType<ShadeCrawler> SHADE_CRAWLER = register("shade_crawler",
 			EntityType.Builder.of(ShadeCrawler::new, MobCategory.MONSTER).sized(1.3F, 0.8F).clientTrackingRange(8));
+	public static final EntityType<net.glowcube.realms.entity.RealmTrader> REALM_TRADER = register("realm_trader",
+			EntityType.Builder.of(net.glowcube.realms.entity.RealmTrader::new, MobCategory.MISC).sized(0.6F, 1.95F).clientTrackingRange(10));
 	public static final EntityType<RealmGuardian> REALM_GUARDIAN = register("realm_guardian",
 			EntityType.Builder.of(RealmGuardian::new, MobCategory.MISC).sized(0.6F, 1.95F).clientTrackingRange(10));
 
@@ -110,6 +112,7 @@ public final class ModEntities {
 		FabricDefaultAttributeRegistry.register(CRYSTAL_GOLEM, CrystalGolem.createAttributes());
 		FabricDefaultAttributeRegistry.register(SHADE_CRAWLER, ShadeCrawler.createAttributes());
 		FabricDefaultAttributeRegistry.register(REALM_GUARDIAN, RealmGuardian.createAttributes());
+		FabricDefaultAttributeRegistry.register(REALM_TRADER, net.minecraft.world.entity.Mob.createMobAttributes().add(net.minecraft.world.entity.ai.attributes.Attributes.MOVEMENT_SPEED, 0.5));
 		FabricDefaultAttributeRegistry.register(GLOWKEEPER, Glowkeeper.createAttributes());
 		FabricDefaultAttributeRegistry.register(UMBRAL_TYRANT, UmbralTyrant.createAttributes());
 		FabricDefaultAttributeRegistry.register(EMBER_WARDEN, EmberWarden.createAttributes());

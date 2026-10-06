@@ -329,5 +329,9 @@
   "message.glowcube_realms.sculk_portal_open": "Der Weg in die Skulk-Dimension ist offen!",
   "biome.glowcube_realms.sculk_plains": "Skulkebene",
   "biome.glowcube_realms.echo_forest": "Echowald",
-  "biome.glowcube_realms.sculk_spires": "Skulktürme"
+  "biome.glowcube_realms.sculk_spires": "Skulktürme",
+  "block.glowcube_realms.cloud_vent": "Wolkendüse",
+  "entity.glowcube_realms.realm_trader": "Reichshändler",
+  "item.glowcube_realms.realm_trader_spawn_egg": "Reichshändler-Spawn-Ei",
+  "block.glowcube_realms.cloud_vent.lore1": "Trägt dich bis zu 24 Blöcke in den Himmel. Schleichen, um darauf zu stehen."
 }

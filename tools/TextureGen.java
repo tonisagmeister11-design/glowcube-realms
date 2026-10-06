@@ -165,6 +165,9 @@ public class TextureGen {
 			guardianVillager("realm_guardian", 0);
 			guardianVillager("realm_guardian_chain", 1);
 			guardianVillager("realm_guardian_iron", 2);
+			trader("realm_trader_lumen", new int[]{0x2a6a9a, 0x3a86b8, 0x56a6d4, 0x7ec4ec}, GLOWCRYSTAL, 0xf2c53d);
+			trader("realm_trader_umbral", new int[]{0x2a1440, 0x3c1e5a, 0x522a78, 0x6a3a96}, VOIDSHARD, 0x9b4ae0);
+			trader("realm_trader_sculk", new int[]{0x08262c, 0x0d3a42, 0x135058, 0x1a6a72}, new int[]{0x0d6a72, 0x29dfeb, 0x5cf2ff, 0xb0ffff, 0xffffff, 0xffffff}, 0x29dfeb);
 			glowkeeper("glowkeeper", 505, new int[]{0x9c7a1f, 0xc9a23a, 0xe8c45c, 0xf8e08f, 0xfff6cf}, new int[]{0xb8c6d8, 0xd2dce8, 0xe8eef5, 0xffffff}, CRYSTAL,
 					0x9ff2ff, 0x6fdcff);
 			glowkeeper("void_herald", 515, new int[]{0x3a1a5a, 0x5a2a8a, 0x7a3aae, 0x9a5ad0, 0xc08aff}, OBSIDIAN, VOID_CRYSTAL, 0xff7aff, 0xd08bff);
@@ -473,6 +476,58 @@ public class TextureGen {
 			cube(40, 46, 4, 12, 4, new Mat(uniform, "cloth"), sleeve);
 			cube(0, 22, 4, 12, 4, new Mat(new int[]{0x2a2a3a, 0x34344a, 0x40405a}, "cloth"), (g, x, y, face, fx, fy, fw, fh) -> fy >= 9 ? 0x3b2614 : 0);
 			save(img, "entity/" + name);
+		}
+
+		/** Realm merchant on the villager/illager UV layout: hooded robe in the realm colours, gem brooch, belt with pouches. */
+		static void trader(String name, int[] robe, int[] gem, int trim) throws IOException {
+			begin(64, 64, name.hashCode());
+			int[] skin = {0x9c6b4a, 0xb5815d, 0xc99572, 0xd9a886};
+			cube(0, 0, 8, 10, 8, new Mat(skin, "stone"), (g, x, y, face, fx, fy, fw, fh) -> {
+				// hood over the head, face left open on the front
+				boolean faceArea = face == 1 && fx >= 1 && fx <= 6 && fy >= 3;
+				if (!faceArea) return fy == 0 || (face != 1 && fy == 9) ? trim : robe[(fx + fy) % 3 + 1];
+				if (fy == 5 && (fx == 1 || fx == 6)) return 0xffffff;
+				if (fy == 5 && (fx == 2 || fx == 5)) {
+					g.setRGB(x, y, argb(gem[3]));
+					return gem[3];
+				}
+				if (fy == 8 && fx >= 2 && fx <= 5) return 0x7a4a30;
+				return 0;
+			});
+			cube(24, 0, 2, 4, 2, new Mat(new int[]{0xb5815d, 0xc99572}, "stone"));
+			Detail coat = (g, x, y, face, fx, fy, fw, fh) -> {
+				if (fy == 7) return 0x4a3220;
+				if (fy == 8 && face == 1 && (fx == 1 || fx == 6)) return 0x7a5232;
+				if (face == 1 && fy == 2 && (fx == 3 || fx == 4)) {
+					g.setRGB(x, y, argb(gem[4]));
+					return gem[4];
+				}
+				if (face == 1 && (fx == 3 || fx == 4)) return trim;
+				return 0;
+			};
+			cube(16, 20, 8, 12, 6, new Mat(robe, "cloth"), coat);
+			cube(0, 38, 8, 20, 6, new Mat(robe, "cloth"), (g, x, y, face, fx, fy, fw, fh) -> {
+				if (fy >= fh - 2) return trim;
+				if (fy == 7) return 0x4a3220;
+				if (face == 1 && fx == fw / 2) return trim;
+				if (noise(x, y) > 0.92) {
+					g.setRGB(x, y, argb(gem[2]));
+					return gem[2];
+				}
+				return 0;
+			});
+			Detail sleeve = (g, x, y, face, fx, fy, fw, fh) -> fy >= fh - 3 ? skin[2] : fy == fh - 4 ? trim : 0;
+			cube(44, 22, 4, 8, 4, new Mat(robe, "cloth"), sleeve);
+			cube(40, 38, 8, 4, 4, new Mat(robe, "cloth"));
+			cube(40, 46, 4, 12, 4, new Mat(robe, "cloth"), sleeve);
+			cube(0, 22, 4, 12, 4, new Mat(new int[]{0x2a2a3a, 0x34344a, 0x40405a}, "cloth"), (g, x, y, face, fx, fy, fw, fh) -> fy >= 9 ? 0x3b2614 : 0);
+			end(name);
+		}
+
+		static double noise(int x, int y) {
+			long h = x * 3129871L ^ y * 116129781L;
+			h = h * h * 42317861L + h * 11L;
+			return ((h >> 16) & 0xFFFF) / 65535.0;
 		}
 
 		static void creatures3() throws IOException {
@@ -1846,6 +1901,35 @@ public class TextureGen {
 		save(egg(0x135058, 0x5cf2ff), "item/sculk_snail_spawn_egg");
 		save(egg(0xa83c10, 0xffb84d), "item/ember_salamander_spawn_egg");
 		save(egg(0x5a2a8a, 0xff7aff), "item/void_jelly_spawn_egg");
+		save(egg(0x3a86b8, 0xf2c53d), "item/realm_trader_spawn_egg");
+		save(ventTop(), "block/cloud_vent_top");
+		save(ventSide(), "block/cloud_vent_side");
+	}
+
+	/** Cloud vent top: skystone rim with a glowing grate and swirling cloud in the middle. */
+	static BufferedImage ventTop() {
+		BufferedImage img = stone(SKYSTONE, 91, 0.03);
+		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
+			double d = Math.hypot(x - 7.5, y - 7.5);
+			if (x == 0 || y == 0 || x == 15 || y == 15) img.setRGB(x, y, argb(SKYSTONE[1]));
+			else if (d < 6.2) {
+				double a = Math.atan2(y - 7.5, x - 7.5) + d * 0.6;
+				boolean swirl = Math.sin(a * 3) > 0.2;
+				img.setRGB(x, y, argb(d < 1.6 ? 0xffffff : swirl ? 0xe8f6ff : 0x9fdcff));
+				if ((x + y) % 4 == 0 && d > 2.5) img.setRGB(x, y, argb(GLOWCRYSTAL[3]));
+			} else if (d < 7.2) img.setRGB(x, y, argb(GLOWCRYSTAL[2]));
+		}
+		return img;
+	}
+
+	static BufferedImage ventSide() {
+		BufferedImage img = bricks(SKYSTONE, 92);
+		for (int x = 0; x < 16; x++) {
+			img.setRGB(x, 0, argb(GLOWCRYSTAL[3]));
+			img.setRGB(x, 1, argb(GLOWCRYSTAL[1]));
+			if (x % 4 == 1) for (int y = 3; y < 13; y++) img.setRGB(x, y, argb(y % 3 == 0 ? 0xffffff : 0xc8ecff));
+		}
+		return img;
 	}
 
 	static BufferedImage keyhole(boolean filled) {

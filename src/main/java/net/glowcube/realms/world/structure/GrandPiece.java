@@ -58,10 +58,16 @@ public class GrandPiece extends StructurePiece {
 	private static BoundingBox box(String kind, BlockPos c) {
 		int r, lo, hi;
 		switch (kind) {
-			case "pyramid" -> { r = 42; lo = -16; hi = 33; }
-			case "jungle" -> { r = 32; lo = -14; hi = 31; }
+			case "pyramid" -> { r = 62; lo = -16; hi = 47; }
+			case "jungle" -> { r = 44; lo = -14; hi = 40; }
 			case "igloo" -> { r = 17; lo = -13; hi = 10; }
 			case "witch" -> { r = 11; lo = -12; hi = 23; }
+			case "sky_market" -> { r = 26; lo = -21; hi = 26; }
+			case "sky_ruin" -> { r = 11; lo = -13; hi = 10; }
+			case "shadow_bazaar" -> { r = 25; lo = -44; hi = 12; }
+			case "umbral_mine" -> { r = 42; lo = -3; hi = 5; }
+			case "echo_camp" -> { r = 11; lo = -9; hi = 9; }
+			case "echo_ruin" -> { r = 19; lo = -11; hi = 15; }
 			default -> { r = 25; lo = -10; hi = 34; }
 		}
 		return new BoundingBox(c.getX() - r, c.getY() + lo, c.getZ() - r, c.getX() + r, c.getY() + hi, c.getZ() + r);
@@ -84,6 +90,12 @@ public class GrandPiece extends StructurePiece {
 			case "jungle" -> this.jungle(b);
 			case "igloo" -> this.igloo(b);
 			case "witch" -> this.witch(b);
+			case "sky_market" -> this.skyMarket(b);
+			case "sky_ruin" -> this.skyRuin(b);
+			case "shadow_bazaar" -> this.shadowBazaar(b);
+			case "umbral_mine" -> this.umbralMine(b);
+			case "echo_camp" -> this.echoCamp(b);
+			case "echo_ruin" -> this.echoRuin(b);
 			default -> this.fortress(b);
 		}
 	}
@@ -274,196 +286,261 @@ public class GrandPiece extends StructurePiece {
 		}
 	}
 
-	// ================================================================== Grand Desert Pyramid
-	private void pyramid(B b) {
-		RandomSource r = this.layout();
-		BlockState ss = st(Blocks.SANDSTONE), smooth = st(Blocks.SMOOTH_SANDSTONE), cut = st(Blocks.CUT_SANDSTONE), chis = st(Blocks.CHISELED_SANDSTONE);
-		BlockState orange = st(Blocks.DYED_TERRACOTTA.pick(net.minecraft.world.item.DyeColor.ORANGE)), blue = st(Blocks.DYED_TERRACOTTA.pick(net.minecraft.world.item.DyeColor.BLUE)), gold = st(Blocks.GOLD_BLOCK);
-		final int H = 30;
-		// foundation and an underground plinth that holds the crypt levels
-		for (int dx = -H; dx <= H; dx++) for (int dz = -H; dz <= H; dz++) b.foundation(dx, dz, -1, ss, 16);
-		b.fill(-23, -13, -23, 23, -1, 23, ss);
-		// stepped body with terracotta bands
-		for (int y = 0; y <= H; y++) {
-			int s = H - y;
-			for (int dx = -s; dx <= s; dx++) for (int dz = -s; dz <= s; dz++) {
-				int m = Math.max(Math.abs(dx), Math.abs(dz));
-				BlockState state = ss;
-				if (m >= s - 1) state = y % 6 == 3 && m == s ? orange : y % 6 == 4 && m == s ? cut : smooth;
-				b.set(dx, y, dz, state);
-			}
-		}
-		b.set(0, H + 1, 0, gold);
-
-		// forecourt with obelisks and the gate (north)
-		for (int dx = -6; dx <= 6; dx++) for (int dz = -42; dz <= -30; dz++) {
-			b.foundation(dx, dz, -1, ss, 12);
-			b.set(dx, 0, dz, (dx + dz) % 4 == 0 ? orange : cut);
-			if (dz < -30 - (6 - Math.abs(dx)) / 6) b.air(dx, 1, dz, dx, 9, dz);
-		}
-		for (int sx : new int[]{-5, 5}) {
-			b.fill(sx, 1, -39, sx, 8, -39, cut);
-			b.set(sx, 9, -39, chis);
-			b.set(sx, 10, -39, gold);
-		}
-		b.fill(-3, 0, -33, 3, 7, -29, cut);
-		b.fill(-3, 6, -33, 3, 6, -33, orange);
-		b.set(-2, 5, -33, chis);
-		b.set(2, 5, -33, chis);
-		b.set(0, 6, -33, blue);
-		b.air(-1, 1, -34, 1, 4, -21);
-
-		// maze: 11 x 11 cells of 3-wide corridors on the ground level
-		final int N = 11;
-		boolean[][] seen = new boolean[N][N];
+	// ================================================================== maze helper
+	/**
+	 * Carves an n x n maze of 3-wide corridors (cells every 4 blocks starting at base) between y and y+h-1,
+	 * starting at cell (si, sj). Returns the number of openings of every cell (1 = dead end).
+	 */
+	private int[] maze(B b, RandomSource r, int n, int base, int y, int h, int si, int sj, int loops, BlockState floor, BlockState accent) {
+		boolean[][] seen = new boolean[n][n];
 		List<int[]> passages = new ArrayList<>();
 		ArrayDeque<int[]> stack = new ArrayDeque<>();
-		stack.push(new int[]{5, 0});
-		seen[5][0] = true;
+		stack.push(new int[]{si, sj});
+		seen[si][sj] = true;
 		int[][] dirs = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-		int[] links = new int[N * N];
+		int[] links = new int[n * n];
 		while (!stack.isEmpty()) {
 			int[] c = stack.peek();
 			List<int[]> open = new ArrayList<>();
 			for (int[] d : dirs) {
 				int ni = c[0] + d[0], nj = c[1] + d[1];
-				if (ni >= 0 && nj >= 0 && ni < N && nj < N && !seen[ni][nj]) open.add(new int[]{ni, nj});
+				if (ni >= 0 && nj >= 0 && ni < n && nj < n && !seen[ni][nj]) open.add(new int[]{ni, nj});
 			}
 			if (open.isEmpty()) {
 				stack.pop();
 				continue;
 			}
-			int[] n = open.get(r.nextInt(open.size()));
-			seen[n[0]][n[1]] = true;
-			passages.add(new int[]{c[0], c[1], n[0], n[1]});
-			links[c[0] * N + c[1]]++;
-			links[n[0] * N + n[1]]++;
-			stack.push(n);
+			int[] nx = open.get(r.nextInt(open.size()));
+			seen[nx[0]][nx[1]] = true;
+			passages.add(new int[]{c[0], c[1], nx[0], nx[1]});
+			links[c[0] * n + c[1]]++;
+			links[nx[0] * n + nx[1]]++;
+			stack.push(nx);
 		}
-		// a few extra openings make loops, so the maze is not a single path
-		for (int k = 0; k < 14; k++) {
-			int i = r.nextInt(N - 1), j = r.nextInt(N);
+		for (int k = 0; k < loops; k++) {
+			int i = r.nextInt(n - 1), j = r.nextInt(n);
 			passages.add(r.nextBoolean() ? new int[]{i, j, i + 1, j} : new int[]{j, i, j, i + 1});
 		}
-		for (int i = 0; i < N; i++) for (int j = 0; j < N; j++) {
-			int cx = -20 + 4 * i, cz = -20 + 4 * j;
-			b.air(cx - 1, 1, cz - 1, cx + 1, 4, cz + 1);
+		for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) {
+			int cx = base + 4 * i, cz = base + 4 * j;
+			b.air(cx - 1, y, cz - 1, cx + 1, y + h - 1, cz + 1);
 			for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++)
-				b.set(cx + dx, 0, cz + dz, noise(cx + dx, 0, cz + dz) > 0.82 ? orange : smooth);
+				b.set(cx + dx, y - 1, cz + dz, noise(cx + dx, y, cz + dz) > 0.84 ? accent : floor);
 		}
 		for (int[] p : passages) {
-			int x1 = -20 + 4 * p[0], z1 = -20 + 4 * p[1], x2 = -20 + 4 * p[2], z2 = -20 + 4 * p[3];
+			int x1 = base + 4 * p[0], z1 = base + 4 * p[1], x2 = base + 4 * p[2], z2 = base + 4 * p[3];
 			int mx = (x1 + x2) / 2, mz = (z1 + z2) / 2;
-			if (x1 == x2) b.air(mx - 1, 1, mz, mx + 1, 4, mz);
-			else b.air(mx, 1, mz - 1, mx, 4, mz + 1);
+			if (x1 == x2) b.air(mx - 1, y, mz, mx + 1, y + h - 1, mz);
+			else b.air(mx, y, mz - 1, mx, y + h - 1, mz + 1);
 		}
-		// dead ends hold small finds: chests, brushable sand, husk crypts
-		int deadEnds = 0;
-		for (int i = 0; i < N; i++) for (int j = 0; j < N; j++) {
-			if (links[i * N + j] != 1 || (Math.abs(i - 5) <= 1 && Math.abs(j - 5) <= 1) || (i == 10 && j == 10) || (i == 5 && j == 0)) continue;
-			int cx = -20 + 4 * i, cz = -20 + 4 * j;
-			int roll = r.nextInt(4);
-			if (roll == 0 && deadEnds < 6) {
-				b.chest(cx, 1, cz, Direction.NORTH, "minecraft:chests/desert_pyramid");
-				deadEnds++;
-			} else if (roll == 1) {
-				b.suspicious(cx, 0, cz, Blocks.SUSPICIOUS_SAND, "minecraft:archaeology/desert_pyramid");
-				b.suspicious(cx + 1, 0, cz, Blocks.SUSPICIOUS_SAND, "minecraft:archaeology/desert_pyramid");
-			} else if (roll == 2) {
-				b.set(cx, 1, cz, st(Blocks.DECORATED_POT));
-				b.set(cx - 1, 1, cz + 1, st(Blocks.DECORATED_POT));
+		return links;
+	}
+
+	// ================================================================== Grand Desert Pyramid
+	private void pyramid(B b) {
+		RandomSource r = this.layout();
+		BlockState ss = st(Blocks.SANDSTONE), smooth = st(Blocks.SMOOTH_SANDSTONE), cut = st(Blocks.CUT_SANDSTONE), chis = st(Blocks.CHISELED_SANDSTONE);
+		BlockState orange = st(Blocks.DYED_TERRACOTTA.pick(net.minecraft.world.item.DyeColor.ORANGE));
+		BlockState blue = st(Blocks.DYED_TERRACOTTA.pick(net.minecraft.world.item.DyeColor.BLUE)), gold = st(Blocks.GOLD_BLOCK);
+		final int H = 44;
+		final String TREASURE = "glowcube_realms:chests/grand_pyramid_treasure", PYR = "minecraft:chests/desert_pyramid";
+		// foundation and an underground plinth that holds the crypt level
+		for (int dx = -H; dx <= H; dx++) for (int dz = -H; dz <= H; dz++) b.foundation(dx, dz, -1, ss, 16);
+		b.fill(-37, -14, -37, 37, -1, 37, ss);
+		// stepped body with terracotta bands and a golden cap
+		for (int y = 0; y <= H; y++) {
+			int s = H - y;
+			for (int dx = -s; dx <= s; dx++) for (int dz = -s; dz <= s; dz++) {
+				int m = Math.max(Math.abs(dx), Math.abs(dz));
+				BlockState state = ss;
+				if (m >= s - 1) state = y % 7 == 3 && m == s ? orange : y % 7 == 4 && m == s ? cut : smooth;
+				if (y >= H - 2) state = gold;
+				b.set(dx, y, dz, state);
 			}
 		}
-		// a few lanterns so the corridors are not pitch black everywhere
-		for (int k = 0; k < 12; k++) b.set(-20 + 4 * r.nextInt(N) + 1, 1, -20 + 4 * r.nextInt(N) + 1, st(Blocks.LANTERN));
-
-		// great hall in the middle, with the classic TNT trap under the star
-		b.air(-5, 1, -5, 5, 10, 5);
-		for (int dx = -5; dx <= 5; dx++) for (int dz = -5; dz <= 5; dz++) {
-			int m = Math.abs(dx) + Math.abs(dz);
-			b.set(dx, 0, dz, m <= 1 ? blue : m <= 3 && (dx == 0 || dz == 0) ? orange : (dx + dz) % 2 == 0 ? smooth : cut);
+		// forecourt with an avenue of obelisks and the gate (north)
+		for (int dx = -9; dx <= 9; dx++) for (int dz = -61; dz <= -44; dz++) {
+			b.foundation(dx, dz, -1, ss, 12);
+			b.set(dx, 0, dz, Math.abs(dx) <= 2 ? ((dz % 3 == 0) ? orange : cut) : smooth);
+			if (dz <= -45) b.air(dx, 1, dz, dx, 14, dz);
 		}
-		for (int px : new int[]{-3, 3}) for (int pz : new int[]{-3, 3}) {
-			b.fill(px, 1, pz, px, 10, pz, cut);
-			b.set(px, 1, pz, chis);
-			b.set(px, 10, pz, chis);
-			b.set(px, 6, pz, orange);
+		for (int sx : new int[]{-8, 8}) for (int oz : new int[]{-58, -52}) {
+			b.fill(sx, 1, oz, sx, 11, oz, cut);
+			b.set(sx, 5, oz, orange);
+			b.set(sx, 12, oz, chis);
+			b.set(sx, 13, oz, gold);
+		}
+		b.fill(-5, 0, -50, 5, 10, -43, cut);
+		b.fill(-5, 9, -50, 5, 9, -50, orange);
+		b.set(-3, 7, -50, chis);
+		b.set(3, 7, -50, chis);
+		b.set(0, 10, -50, blue);
+		b.air(-1, 1, -51, 1, 4, -33);
+
+		// level 1: big maze (17 x 17 cells)
+		int n = 17;
+		int[] links = this.maze(b, r, n, -32, 1, 4, 8, 0, 30, smooth, orange);
+		int chests = 0;
+		for (int i = 0; i < n; i++) for (int j = 0; j < n; j++) {
+			if (links[i * n + j] != 1 || (Math.abs(i - 8) <= 2 && Math.abs(j - 8) <= 2) || (i == 16 && j == 16) || (i == 8 && j == 0)) continue;
+			int cx = -32 + 4 * i, cz = -32 + 4 * j;
+			switch (r.nextInt(5)) {
+				case 0 -> {
+					if (chests++ < 10) b.chest(cx, 1, cz, Direction.NORTH, PYR);
+				}
+				case 1 -> {
+					b.suspicious(cx, 0, cz, Blocks.SUSPICIOUS_SAND, "minecraft:archaeology/desert_pyramid");
+					b.suspicious(cx + 1, 0, cz, Blocks.SUSPICIOUS_SAND, "minecraft:archaeology/desert_pyramid");
+				}
+				case 2 -> {
+					b.set(cx, 1, cz, st(Blocks.DECORATED_POT));
+					b.set(cx - 1, 1, cz + 1, st(Blocks.DECORATED_POT));
+				}
+				case 3 -> {
+					// mummy niche: sarcophagus with a husk spawner
+					b.set(cx, 1, cz, st(Blocks.SMOOTH_SANDSTONE));
+					b.spawner(cx, 2, cz, EntityTypes.HUSK);
+				}
+				default -> b.set(cx, 1, cz, st(Blocks.LANTERN));
+			}
+		}
+		for (int k = 0; k < 26; k++) b.set(-32 + 4 * r.nextInt(n) + 1, 1, -32 + 4 * r.nextInt(n) + 1, st(Blocks.LANTERN));
+
+		// great hall with the TNT star trap
+		b.air(-9, 1, -9, 9, 14, 9);
+		for (int dx = -9; dx <= 9; dx++) for (int dz = -9; dz <= 9; dz++) {
+			int m = Math.abs(dx) + Math.abs(dz);
+			b.set(dx, 0, dz, m <= 1 ? blue : m <= 5 && (dx == 0 || dz == 0) ? orange : (dx + dz) % 2 == 0 ? smooth : cut);
+		}
+		for (int[] p : new int[][]{{-4, -4}, {4, -4}, {-4, 4}, {4, 4}, {-8, -8}, {8, -8}, {-8, 8}, {8, 8}}) {
+			b.fill(p[0], 1, p[1], p[0], 14, p[1], cut);
+			b.set(p[0], 1, p[1], chis);
+			b.set(p[0], 14, p[1], chis);
+			b.set(p[0], 7, p[1], orange);
 		}
 		b.tntPlate(0, 1, 0);
-		for (int[] t : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) b.set(t[0], -1, t[1], st(Blocks.TNT));
-		b.chest(-5, 1, -1, Direction.EAST, "minecraft:chests/desert_pyramid");
-		b.chest(5, 1, 1, Direction.WEST, "minecraft:chests/desert_pyramid");
-		b.chest(1, 1, -5, Direction.SOUTH, "minecraft:chests/desert_pyramid");
-		b.chest(-1, 1, 5, Direction.NORTH, "minecraft:chests/desert_pyramid");
-		for (int[] l : new int[][]{{-2, -3}, {2, 3}, {3, -2}, {-3, 2}}) b.set(l[0], 1, l[1], st(Blocks.LANTERN));
+		for (int[] t : new int[][]{{1, 0}, {-1, 0}, {0, 1}, {0, -1}, {1, 1}, {-1, -1}, {1, -1}, {-1, 1}}) b.set(t[0], -1, t[1], st(Blocks.TNT));
+		b.chest(-9, 1, -2, Direction.EAST, PYR);
+		b.chest(9, 1, 2, Direction.WEST, PYR);
+		b.chest(2, 1, -9, Direction.SOUTH, PYR);
+		b.chest(-2, 1, 9, Direction.NORTH, PYR);
+		for (int[] l : new int[][]{{-3, -5}, {3, 5}, {5, -3}, {-5, 3}, {-7, 0}, {7, 0}}) b.set(l[0], 1, l[1], st(Blocks.LANTERN));
 
-		// king's chamber above the hall, reached by a ladder on a pillar
-		b.air(-5, 12, -5, 5, 17, 5);
-		b.air(-2, 11, -3, -2, 11, -3);
-		b.set(-3, 11, -3, cut);
-		b.set(-3, 12, -3, cut);
-		b.ladder(-2, 1, 12, -3, Direction.EAST);
-		for (int dx = -5; dx <= 5; dx++) for (int dz = -5; dz <= 5; dz++) if ((dx + dz) % 3 == 0 && (dx != -2 || dz != -3)) b.set(dx, 11, dz, orange);
-		for (int dx = -5; dx <= 5; dx++) {
-			b.set(dx, 15, -6, chis);
-			b.set(dx, 15, 6, chis);
-			b.set(-6, 15, dx, chis);
-			b.set(6, 15, dx, chis);
+		// level 2: king's chamber above the hall (ladder on a pillar)
+		b.air(-8, 17, -8, 8, 23, 8);
+		b.fill(-4, 15, -4, -4, 17, -4, cut);
+		b.ladder(-3, 1, 17, -4, Direction.EAST);
+		for (int dx = -8; dx <= 8; dx++) for (int dz = -8; dz <= 8; dz++) if ((dx + dz) % 3 == 0 && (dx != -3 || dz != -4)) b.set(dx, 16, dz, orange);
+		for (int d = -8; d <= 8; d++) {
+			b.set(d, 20, -9, chis);
+			b.set(d, 20, 9, chis);
+			b.set(-9, 20, d, chis);
+			b.set(9, 20, d, chis);
 		}
-		b.fill(-1, 12, -1, 1, 12, 2, smooth);
-		b.fill(-1, 13, -1, 1, 13, 2, st(Blocks.CUT_SANDSTONE_SLAB));
-		b.set(0, 13, -1, chis);
-		b.set(0, 13, 2, chis);
-		for (int[] g : new int[][]{{-5, -5}, {5, -5}, {-5, 5}, {5, 5}}) {
-			b.set(g[0], 12, g[1], gold);
-			b.set(g[0], 13, g[1], st(Blocks.LANTERN));
+		b.fill(-1, 17, -2, 1, 17, 2, smooth);
+		b.fill(-1, 18, -2, 1, 18, 2, st(Blocks.CUT_SANDSTONE_SLAB));
+		b.set(0, 18, -2, chis);
+		b.set(0, 18, 2, gold);
+		for (int[] g : new int[][]{{-7, -7}, {7, -7}, {-7, 7}, {7, 7}}) {
+			b.set(g[0], 17, g[1], gold);
+			b.set(g[0], 18, g[1], st(Blocks.LANTERN));
 		}
-		b.chest(4, 12, 0, Direction.WEST, "glowcube_realms:chests/grand_pyramid_treasure");
-		b.chest(-4, 12, 1, Direction.EAST, "minecraft:chests/desert_pyramid");
+		b.chest(6, 17, 0, Direction.WEST, TREASURE);
+		b.chest(-6, 17, 1, Direction.EAST, TREASURE);
+		b.chest(0, 17, -7, Direction.SOUTH, PYR);
 
-		// stairs from the far maze corner down into the crypt
+		// level 3: the sun gallery maze, reached by a ladder from the king's chamber
+		b.fill(6, 17, 6, 6, 26, 6, cut);
+		b.ladder(5, 17, 26, 6, Direction.WEST);
+		int[] upper = this.maze(b, r, 7, -12, 26, 4, 4, 4, 4, smooth, orange);
+		b.air(5, 26, 6, 5, 29, 6);
+		b.ladder(5, 17, 26, 6, Direction.WEST);
+		int found = 0;
+		for (int i = 0; i < 7; i++) for (int j = 0; j < 7; j++) {
+			if (upper[i * 7 + j] != 1 || (i == 3 && j == 3)) continue;
+			int cx = -12 + 4 * i, cz = -12 + 4 * j;
+			if (found++ % 2 == 0) b.chest(cx, 26, cz, Direction.NORTH, TREASURE);
+			else b.suspicious(cx, 25, cz, Blocks.SUSPICIOUS_SAND, "minecraft:archaeology/desert_pyramid");
+			b.set(cx + 1, 26, cz + 1, st(Blocks.LANTERN));
+		}
+		// level 4: the sun chamber near the top with an enchanting altar
+		b.fill(0, 26, 0, 0, 32, 0, cut);
+		b.ladder(1, 26, 32, 0, Direction.WEST);
+		b.air(-5, 32, -5, 5, 36, 5);
+		for (int dx = -5; dx <= 5; dx++) for (int dz = -5; dz <= 5; dz++) b.set(dx, 31, dz, (dx + dz) % 2 == 0 ? gold : cut);
+		b.set(1, 31, 0, facing(Blocks.LADDER, Direction.WEST));
+		b.set(0, 32, -3, st(Blocks.ENCHANTING_TABLE));
+		for (int dx = -2; dx <= 2; dx++) {
+			b.set(dx, 32, -5, st(Blocks.BOOKSHELF));
+			b.set(dx, 33, -5, st(Blocks.BOOKSHELF));
+		}
+		b.set(-2, 32, -4, st(Blocks.BOOKSHELF));
+		b.set(2, 32, -4, st(Blocks.BOOKSHELF));
+		b.chest(-4, 32, 3, Direction.EAST, TREASURE);
+		b.chest(4, 32, 3, Direction.WEST, TREASURE);
+		b.set(-4, 32, -4, st(Blocks.LANTERN));
+		b.set(4, 32, -4, st(Blocks.LANTERN));
+
+		// crypt: stairs from the far corner of the maze down to the trap corridors
 		for (int k = 0; k <= 9; k++) {
-			int x = 18 - k, fy = -k;
-			b.air(x, fy + 1, 19, x, fy + 4, 21);
-			for (int z = 19; z <= 21; z++) b.stairs(x, fy, z, Blocks.SANDSTONE_STAIRS, Direction.EAST);
+			int x = 30 - k, fy = -k;
+			b.air(x, fy + 1, 31, x, fy + 4, 33);
+			for (int z = 31; z <= 33; z++) b.stairs(x, fy, z, Blocks.SANDSTONE_STAIRS, Direction.EAST);
 		}
-		// trap corridor 1: tripwire arrow traps
-		b.air(-1, -8, 19, 8, -5, 21);
-		b.fill(-1, -9, 19, 8, -9, 21, smooth);
-		b.tripwireTrap(6, -8, 18, 6, 22);
-		b.tripwireTrap(2, -8, 18, 2, 22);
-		b.set(4, -5, 20, st(Blocks.LANTERN).setValue(BlockStateProperties.HANGING, true));
-		// trap corridor 2: lava pit to jump over, then pressure plates over TNT before the door
-		b.air(-1, -8, 7, 1, -5, 18);
-		b.fill(-1, -9, 7, 1, -9, 18, smooth);
-		b.air(-1, -11, 12, 1, -9, 14);
-		b.fill(-1, -12, 12, 1, -12, 14, st(Blocks.LAVA));
+		b.air(-1, -8, 31, 20, -5, 33);
+		b.fill(-1, -9, 31, 20, -9, 33, smooth);
+		b.tripwireTrap(16, -8, 30, 16, 34);
+		b.tripwireTrap(10, -8, 30, 10, 34);
+		b.tripwireTrap(19, -8, 30, 19, 34);
+		b.set(13, -5, 32, st(Blocks.LANTERN).setValue(BlockStateProperties.HANGING, true));
+		b.set(7, -5, 32, st(Blocks.LANTERN).setValue(BlockStateProperties.HANGING, true));
+		b.air(-1, -8, 10, 1, -5, 30);
+		b.fill(-1, -9, 10, 1, -9, 30, smooth);
+		// lava pit to jump over
+		b.air(-1, -11, 21, 1, -9, 23);
+		b.fill(-1, -12, 21, 1, -12, 23, st(Blocks.LAVA));
+		// side crypts with mummies
+		for (int side : new int[]{-1, 1}) for (int cz : new int[]{15, 27}) {
+			int x1 = side < 0 ? -8 : 3, x2 = side < 0 ? -3 : 8;
+			b.air(x1, -8, cz - 2, x2, -5, cz + 2);
+			b.air(2 * side, -8, cz, 2 * side, -6, cz);
+			int mx = side * 6;
+			b.fill(mx - 1, -8, cz - 1, mx + 1, -8, cz + 1, smooth);
+			b.set(mx, -7, cz, chis);
+			b.spawner(mx, -8, cz - 2, EntityTypes.HUSK);
+			b.chest(mx + side, -7, cz + 1, side < 0 ? Direction.EAST : Direction.WEST, PYR);
+			b.set(side * 4, -8, cz - 2, st(Blocks.LANTERN));
+		}
+		// pressure plates over TNT in front of the treasure door
 		for (int dx = -1; dx <= 1; dx++) {
-			b.tntPlate(dx, -8, 8);
-			b.set(dx, -10, 8, st(Blocks.TNT));
+			b.tntPlate(dx, -8, 12);
+			b.set(dx, -10, 11, st(Blocks.TNT));
 		}
 		// treasure chamber
-		b.air(-6, -8, -6, 6, -3, 6);
-		for (int dx = -6; dx <= 6; dx++) for (int dz = -6; dz <= 6; dz++) {
+		b.air(-9, -8, -9, 9, -3, 9);
+		b.air(-1, -8, 9, 1, -6, 10);
+		for (int dx = -9; dx <= 9; dx++) for (int dz = -9; dz <= 9; dz++) {
 			int m = Math.max(Math.abs(dx), Math.abs(dz));
 			b.set(dx, -9, dz, m % 2 == 0 ? blue : (dx + dz) % 2 == 0 ? gold : orange);
 		}
-		b.air(-1, -8, 6, 1, -6, 7);
-		for (int px : new int[]{-4, 4}) for (int pz : new int[]{-4, 4}) {
-			b.fill(px, -8, pz, px, -3, pz, cut);
-			b.set(px, -8, pz, chis);
-			b.set(px, -3, pz, chis);
+		for (int[] p : new int[][]{{-5, -5}, {5, -5}, {-5, 5}, {5, 5}}) {
+			b.fill(p[0], -8, p[1], p[0], -3, p[1], cut);
+			b.set(p[0], -8, p[1], chis);
+			b.set(p[0], -3, p[1], chis);
 		}
-		b.fill(-1, -8, -2, 1, -7, 1, smooth);
-		b.fill(-1, -6, -2, 1, -6, 1, st(Blocks.SMOOTH_SANDSTONE_SLAB));
-		b.set(0, -6, -2, gold);
-		b.spawner(0, -8, -5, EntityTypes.HUSK);
-		b.chest(-3, -8, -6, Direction.SOUTH, "glowcube_realms:chests/grand_pyramid_treasure");
-		b.chest(3, -8, -6, Direction.SOUTH, "glowcube_realms:chests/grand_pyramid_treasure");
-		b.chest(-6, -8, 0, Direction.EAST, "glowcube_realms:chests/grand_pyramid_treasure");
-		b.chest(6, -8, 0, Direction.WEST, "minecraft:chests/desert_pyramid");
-		for (int[] g : new int[][]{{-5, -5}, {5, -5}, {-5, 4}, {5, 4}, {-5, -4}, {5, -4}}) b.set(g[0], -8, g[1], r.nextBoolean() ? gold : st(Blocks.RAW_GOLD_BLOCK));
-		for (int[] l : new int[][]{{-2, 4}, {2, 4}, {-3, -3}, {3, -3}}) b.set(l[0], -8, l[1], st(Blocks.LANTERN));
+		b.fill(-2, -8, -3, 2, -7, 2, smooth);
+		b.fill(-2, -6, -3, 2, -6, 2, st(Blocks.SMOOTH_SANDSTONE_SLAB));
+		b.set(0, -6, -3, gold);
+		b.set(0, -6, 2, gold);
+		b.spawner(-7, -8, -7, EntityTypes.HUSK);
+		b.spawner(7, -8, -7, EntityTypes.HUSK);
+		b.chest(-3, -8, -9, Direction.SOUTH, TREASURE);
+		b.chest(3, -8, -9, Direction.SOUTH, TREASURE);
+		b.chest(-9, -8, 0, Direction.EAST, TREASURE);
+		b.chest(9, -8, 0, Direction.WEST, TREASURE);
+		b.chest(0, -8, -9, Direction.SOUTH, PYR);
+		for (int[] g : new int[][]{{-8, -8}, {8, -8}, {-8, 7}, {8, 7}, {-8, -6}, {8, -6}, {-6, -8}, {6, -8}}) b.set(g[0], -8, g[1], r.nextBoolean() ? gold : st(Blocks.RAW_GOLD_BLOCK));
+		for (int[] l : new int[][]{{-3, 6}, {3, 6}, {-4, -4}, {4, -4}, {-7, 3}, {7, 3}}) b.set(l[0], -8, l[1], st(Blocks.LANTERN));
 	}
 
 	// ================================================================== Grand Jungle Temple
@@ -483,12 +560,13 @@ public class GrandPiece extends StructurePiece {
 	private void jungle(B b) {
 		RandomSource r = this.layout();
 		BlockState chis = st(Blocks.CHISELED_STONE_BRICKS), bricks = st(Blocks.MOSSY_STONE_BRICKS), gold = st(Blocks.GOLD_BLOCK), emerald = st(Blocks.EMERALD_BLOCK);
-		for (int dx = -22; dx <= 22; dx++) for (int dz = -22; dz <= 22; dz++)
+		final String TEMPLE = "minecraft:chests/jungle_temple", TREASURE = "glowcube_realms:chests/jungle_treasure";
+		for (int dx = -32; dx <= 32; dx++) for (int dz = -32; dz <= 32; dz++)
 			for (int i = 1; i <= 16 && !b.solid(dx, -i, dz); i++) b.set(dx, -i, dz, this.mossy(dx, -i, dz));
-		this.mossyFill(b, -20, -13, -20, 20, -1, 20);
-		// four stepped tiers
-		for (int t = 0; t < 4; t++) {
-			int half = 22 - 4 * t;
+		this.mossyFill(b, -28, -13, -28, 28, -1, 28);
+		// five stepped tiers
+		for (int t = 0; t < 5; t++) {
+			int half = 32 - 4 * t;
 			this.mossyFill(b, -half, 6 * t, -half, half, 6 * t + 5, half);
 			for (int d = -half; d <= half; d += 4) {
 				b.set(d, 6 * t + 5, -half, chis);
@@ -497,111 +575,380 @@ public class GrandPiece extends StructurePiece {
 				b.set(half, 6 * t + 5, d, chis);
 			}
 		}
-		// grand stair up the north face to the shrine
-		for (int k = 0; k <= 24; k++) {
-			int z = -31 + k;
-			for (int dx = -2; dx <= 2; dx++) {
-				for (int y = 0; y < k; y++) if (z < -22 || !b.solid(dx, y, z)) b.set(dx, y, z, this.mossy(dx, y, z));
+		// grand stair up the north face
+		for (int k = 0; k <= 30; k++) {
+			int z = -43 + k;
+			for (int dx = -3; dx <= 3; dx++) {
+				for (int y = 0; y < k; y++) if (z < -32 || !b.solid(dx, y, z)) b.set(dx, y, z, this.mossy(dx, y, z));
 				b.foundation(dx, z, -1, this.mossy(dx, 0, z), 10);
-				b.stairs(dx, k, z, Math.abs(dx) == 2 ? Blocks.STONE_BRICK_STAIRS : Blocks.MOSSY_COBBLESTONE_STAIRS, Direction.SOUTH);
+				b.stairs(dx, k, z, Math.abs(dx) == 3 ? Blocks.STONE_BRICK_STAIRS : Blocks.MOSSY_COBBLESTONE_STAIRS, Direction.SOUTH);
 				b.air(dx, k + 1, z, dx, k + 4, z);
 			}
+			if (k % 6 == 5) {
+				b.set(-4, k + 1, z, st(Blocks.LANTERN));
+				b.set(4, k + 1, z, st(Blocks.LANTERN));
+			}
 		}
+		b.air(-3, 30, -12, 3, 33, -10);
 		// shrine on the top
-		b.room(-7, 24, -7, 7, 31, 7, bricks);
-		b.fill(-8, 31, -8, 8, 31, 8, st(Blocks.MOSSY_STONE_BRICK_SLAB));
-		b.air(-1, 25, -7, 1, 27, -7);
-		for (int[] p : new int[][]{{-4, -4}, {4, -4}, {-4, 4}, {4, 4}}) b.fill(p[0], 25, p[1], p[0], 30, p[1], chis);
-		b.fill(-1, 25, 3, 1, 25, 4, chis);
-		b.set(0, 26, 4, gold);
-		b.set(0, 27, 4, st(Blocks.EMERALD_BLOCK));
-		b.chest(0, 25, 2, Direction.NORTH, "minecraft:chests/jungle_temple");
-		b.set(-3, 25, 0, st(Blocks.LANTERN));
-		b.set(3, 25, 0, st(Blocks.LANTERN));
+		b.room(-9, 30, -9, 9, 39, 9, bricks);
+		b.fill(-10, 39, -10, 10, 39, 10, st(Blocks.MOSSY_STONE_BRICK_SLAB));
+		b.air(-1, 31, -9, 1, 34, -9);
+		for (int[] p : new int[][]{{-5, -5}, {5, -5}, {-5, 5}, {5, 5}}) b.fill(p[0], 31, p[1], p[0], 38, p[1], chis);
+		b.fill(-2, 31, 5, 2, 31, 7, chis);
+		b.set(0, 32, 6, gold);
+		b.set(0, 33, 6, emerald);
+		b.set(-1, 32, 6, st(Blocks.EMERALD_BLOCK));
+		b.set(1, 32, 6, st(Blocks.GOLD_BLOCK));
+		b.chest(-2, 32, 6, Direction.NORTH, TEMPLE);
+		b.chest(2, 32, 6, Direction.NORTH, TREASURE);
+		b.tntPlate(0, 31, 3);
+		for (int[] l : new int[][]{{-7, 0}, {7, 0}, {-7, -7}, {7, -7}}) b.set(l[0], 31, l[1], st(Blocks.LANTERN));
 
 		// ground level: entrance (south), ring corridor and the central hall
-		b.fill(-3, 0, 21, 3, 6, 23, chis);
-		b.air(-1, 1, 15, 1, 4, 23);
-		for (int dx = -17; dx <= 17; dx++) for (int dz = -17; dz <= 17; dz++) {
+		b.fill(-4, 0, 31, 4, 7, 34, chis);
+		b.air(-1, 1, 20, 1, 4, 34);
+		for (int dx = -23; dx <= 23; dx++) for (int dz = -23; dz <= 23; dz++) {
 			int m = Math.max(Math.abs(dx), Math.abs(dz));
-			if (m >= 15) b.air(dx, 1, dz, dx, 4, dz);
+			if (m >= 21) b.air(dx, 1, dz, dx, 4, dz);
 		}
-		b.air(-9, 1, -9, 9, 8, 9);
-		for (int[] d : new int[][]{{0, 1}, {0, -1}, {1, 0}, {-1, 0}}) {
-			if (d[0] == 0) b.air(-1, 1, Math.min(10 * d[1], 14 * d[1]), 1, 4, Math.max(10 * d[1], 14 * d[1]));
-			else b.air(Math.min(10 * d[0], 14 * d[0]), 1, -1, Math.max(10 * d[0], 14 * d[0]), 4, 1);
+		b.air(-12, 1, -12, 12, 10, 12);
+		b.air(-1, 1, 13, 1, 4, 20);
+		b.air(-1, 1, -20, 1, 4, -13);
+		b.air(13, 1, -1, 20, 4, 1);
+		b.air(-20, 1, -1, -13, 4, 1);
+		b.tripwireTrap(20, 1, 8, 24, 8);
+		b.tripwireTrap(-24, 1, -8, -20, -8);
+		b.tripwireTrap(8, 1, -24, 8, -20);
+		b.tripwireTrap(-8, 1, 20, -8, 24);
+		b.tripwireTrap(-1, 1, 16, 1, 16);
+		for (int[] c : new int[][]{{-22, -22}, {22, -22}, {-22, 22}, {22, 22}}) b.chest(c[0], 1, c[1], Direction.NORTH, TEMPLE);
+		// hall
+		for (int px : new int[]{-8, 8}) for (int pz : new int[]{-8, 8}) b.fill(px, 1, pz, px, 10, pz, chis);
+		for (int px : new int[]{-4, 4}) for (int pz : new int[]{-4, 4}) {
+			b.fill(px, 1, pz, px, 3, pz, chis);
+			b.set(px, 4, pz, st(Blocks.GLOWSTONE));
 		}
-		// arrow traps in the ring
-		b.tripwireTrap(14, 1, 6, 18, 6);
-		b.tripwireTrap(-18, 1, -6, -14, -6);
-		b.tripwireTrap(6, 1, -18, 6, -14);
-		b.tripwireTrap(-6, 1, 14, -6, 18);
-		// hall: pillars, idols and a pit down into the spider den
-		for (int px : new int[]{-6, 6}) for (int pz : new int[]{-6, 6}) b.fill(px, 1, pz, px, 8, pz, chis);
-		for (int dx = -9; dx <= 9; dx++) for (int dz = -9; dz <= 9; dz++) if (noise(dx, 0, dz) > 0.6) b.set(dx, 0, dz, st(Blocks.MOSSY_STONE_BRICKS));
-		b.chest(-8, 1, 0, Direction.EAST, "minecraft:chests/jungle_temple");
-		b.chest(8, 1, 0, Direction.WEST, "minecraft:chests/jungle_temple");
-		b.set(-8, 1, -8, st(Blocks.GLOWSTONE));
-		b.set(8, 1, 8, st(Blocks.GLOWSTONE));
-		b.set(-8, 1, 8, st(Blocks.GLOWSTONE));
-		b.set(8, 1, -8, st(Blocks.GLOWSTONE));
+		for (int dx = -12; dx <= 12; dx++) for (int dz = -12; dz <= 12; dz++) if (noise(dx, 0, dz) > 0.6) b.set(dx, 0, dz, bricks);
+		b.chest(-11, 1, -4, Direction.EAST, TEMPLE);
+		b.chest(11, 1, 4, Direction.WEST, TEMPLE);
+		for (int[] g : new int[][]{{-11, -11}, {11, 11}, {-11, 11}, {11, -11}}) b.set(g[0], 1, g[1], st(Blocks.GLOWSTONE));
 		b.air(-1, -9, -1, 1, 0, 1);
 		for (int dx = -1; dx <= 1; dx++) b.vine(dx, 0, -1, Direction.NORTH, 9);
 
-		// spider den below
-		b.air(-8, -10, -8, 8, -4, 8);
+		// upper gallery on the third tier, reached by a ladder from the hall
+		b.ladder(12, 1, 13, 6, Direction.WEST);
+		b.air(12, 13, 5, 16, 16, 7);
+		b.ladder(12, 1, 13, 6, Direction.WEST);
+		for (int dx = -19; dx <= 19; dx++) for (int dz = -19; dz <= 19; dz++) {
+			int m = Math.max(Math.abs(dx), Math.abs(dz));
+			if (m >= 17) b.air(dx, 13, dz, dx, 16, dz);
+		}
+		b.tripwireTrap(16, 13, -6, 20, -6);
+		b.tripwireTrap(-20, 13, 6, -16, 6);
+		b.tripwireTrap(-6, 13, -20, -6, -16);
+		b.spawner(0, 13, 18, EntityTypes.ZOMBIE);
+		b.spawner(0, 13, -18, EntityTypes.SKELETON);
+		for (int[] c : new int[][]{{-18, -18}, {18, -18}, {-18, 18}, {18, 18}}) {
+			b.chest(c[0], 13, c[1], Direction.NORTH, c[0] > 0 && c[1] > 0 ? TREASURE : TEMPLE);
+			b.set(c[0] + (c[0] > 0 ? -1 : 1), 13, c[1], st(Blocks.LANTERN));
+		}
+
+		// spider den below the hall
+		b.air(-10, -10, -10, 10, -4, 10);
 		for (int dx = -1; dx <= 1; dx++) for (int dz = -1; dz <= 1; dz++) b.set(dx, -11, dz, st(Blocks.WATER));
-		b.spawner(-6, -10, -6, EntityTypes.CAVE_SPIDER);
-		b.spawner(6, -10, 6, EntityTypes.CAVE_SPIDER);
-		for (int k = 0; k < 30; k++) {
-			int x = r.nextInt(17) - 8, z = r.nextInt(17) - 8, y = -10 + r.nextInt(6);
+		b.spawner(-8, -10, -8, EntityTypes.CAVE_SPIDER);
+		b.spawner(8, -10, 8, EntityTypes.CAVE_SPIDER);
+		for (int k = 0; k < 44; k++) {
+			int x = r.nextInt(21) - 10, z = r.nextInt(21) - 10, y = -10 + r.nextInt(6);
 			if (Math.abs(x) > 1 || Math.abs(z) > 1) b.set(x, y, z, st(Blocks.COBWEB));
 		}
-		b.chest(0, -10, -7, Direction.SOUTH, "minecraft:chests/jungle_temple");
-		b.set(-3, -10, 3, st(Blocks.GLOWSTONE));
-		// corridor east to the hidden vault, behind a cracked "secret" wall and more traps
-		b.air(9, -10, -1, 11, -7, 1);
-		b.fill(12, -10, -1, 12, -7, 1, st(Blocks.CRACKED_STONE_BRICKS));
-		b.set(12, -6, 0, chis);
-		b.tntPlate(10, -10, 0);
-		b.set(10, -12, 1, st(Blocks.TNT));
-		b.set(10, -12, -1, st(Blocks.TNT));
-		b.tripwireTrap(9, -10, -2, 9, 2);
+		b.chest(0, -10, -9, Direction.SOUTH, TEMPLE);
+		b.set(-4, -10, 4, st(Blocks.GLOWSTONE));
+		b.set(4, -10, -4, st(Blocks.GLOWSTONE));
+		// corridor east to the hidden vault: tripwire, TNT plate and a cracked "secret" wall
+		b.air(11, -10, -1, 13, -7, 1);
+		b.tripwireTrap(11, -10, -2, 11, 2);
+		b.tntPlate(12, -10, 0);
+		b.set(12, -12, 1, st(Blocks.TNT));
+		b.set(12, -12, -1, st(Blocks.TNT));
+		b.fill(14, -10, -1, 14, -7, 1, st(Blocks.CRACKED_STONE_BRICKS));
+		b.set(14, -6, 0, chis);
 		// the vault
-		b.air(13, -10, -5, 20, -5, 5);
-		for (int x = 13; x <= 20; x++) for (int z = -5; z <= 5; z++) b.set(x, -11, z, (x + z) % 2 == 0 ? gold : chis);
-		b.fill(17, -10, -1, 18, -10, 1, chis);
-		b.set(17, -9, 0, gold);
-		b.set(18, -9, 0, emerald);
-		b.set(17, -8, 0, st(Blocks.EMERALD_BLOCK));
-		b.chest(19, -10, -4, Direction.NORTH, "glowcube_realms:chests/jungle_treasure");
-		b.chest(19, -10, 4, Direction.SOUTH, "glowcube_realms:chests/jungle_treasure");
-		b.chest(14, -10, -4, Direction.NORTH, "minecraft:chests/jungle_temple");
-		for (int[] g : new int[][]{{20, -5}, {20, 5}, {13, 5}, {13, -5}}) b.set(g[0], -10, g[1], r.nextBoolean() ? emerald : gold);
-		b.set(15, -10, 3, st(Blocks.GLOWSTONE));
-		b.set(15, -10, -3, st(Blocks.GLOWSTONE));
+		b.air(15, -10, -6, 24, -5, 6);
+		for (int x = 15; x <= 24; x++) for (int z = -6; z <= 6; z++) b.set(x, -11, z, (x + z) % 2 == 0 ? gold : chis);
+		b.fill(20, -10, -1, 21, -10, 1, chis);
+		b.set(20, -9, 0, gold);
+		b.set(21, -9, 0, emerald);
+		b.set(20, -8, 0, st(Blocks.EMERALD_BLOCK));
+		b.chest(23, -10, -5, Direction.NORTH, TREASURE);
+		b.chest(23, -10, 5, Direction.SOUTH, TREASURE);
+		b.chest(17, -10, -5, Direction.NORTH, TREASURE);
+		b.chest(17, -10, 5, Direction.SOUTH, TEMPLE);
+		for (int[] g : new int[][]{{24, -6}, {24, 6}, {15, 6}, {15, -6}, {24, 0}}) b.set(g[0], -10, g[1], r.nextBoolean() ? emerald : gold);
+		b.set(18, -10, 3, st(Blocks.GLOWSTONE));
+		b.set(18, -10, -3, st(Blocks.GLOWSTONE));
 		// way back up: ladder shaft into the ring corridor
-		b.air(16, -10, 6, 16, 0, 6);
-		b.ladder(16, -10, 0, 6, Direction.NORTH);
-		b.set(16, -4, 7, bricks);
+		b.air(22, -10, 7, 22, 0, 7);
+		b.ladder(22, -10, 0, 7, Direction.NORTH);
 
 		// overgrowth: vines down the tier walls and bushes on the terraces
-		for (int t = 0; t < 4; t++) {
-			int half = 22 - 4 * t, top = 6 * t + 5;
+		for (int t = 0; t < 5; t++) {
+			int half = 32 - 4 * t, top = 6 * t + 5;
 			for (int d = -half; d <= half; d++) {
 				if (noise(d, t, 1) > 0.55) b.vine(d, top, -half - 1, Direction.SOUTH, 2 + r.nextInt(5));
 				if (noise(d, t, 2) > 0.55) b.vine(d, top, half + 1, Direction.NORTH, 2 + r.nextInt(5));
 				if (noise(d, t, 3) > 0.55) b.vine(-half - 1, top, d, Direction.EAST, 2 + r.nextInt(5));
 				if (noise(d, t, 4) > 0.55) b.vine(half + 1, top, d, Direction.WEST, 2 + r.nextInt(5));
 			}
-			if (t < 3) for (int k = 0; k < 10; k++) {
+			if (t < 4) for (int k = 0; k < 14; k++) {
 				int a = half - 1 - r.nextInt(2), c = r.nextInt(2 * half - 1) - half + 1;
 				int[][] spots = {{c, -a}, {c, a}, {-a, c}, {a, c}};
 				int[] s = spots[r.nextInt(4)];
-				if (Math.abs(s[0]) <= 2 && s[1] < 0) continue;
+				if (Math.abs(s[0]) <= 4 && s[1] < 0) continue;
 				b.set(s[0], top + 1, s[1], Blocks.JUNGLE_LEAVES.defaultBlockState().setValue(BlockStateProperties.PERSISTENT, true));
 			}
 		}
+	}
+
+	// ================================================================== realm places
+	/** Floating island with a flat top at y=0 (grass, soil, skystone), round and tapering downwards. */
+	private void skyIsland(B b, int radius, int depth) {
+		for (int dx = -radius; dx <= radius; dx++) for (int dz = -radius; dz <= radius; dz++) {
+			double d = Math.sqrt(dx * dx + dz * dz) / radius;
+			if (d > 1.0) continue;
+			int bottom = (int) Math.round((1 - d * d) * depth + noise(dx, 0, dz) * 3);
+			for (int y = -bottom; y <= 0; y++) {
+				BlockState s = y == 0 ? st(net.glowcube.realms.registry.ModBlocks.LUMEN_GRASS) : y >= -3 ? st(net.glowcube.realms.registry.ModBlocks.LUMEN_SOIL)
+						: noise(dx, y, dz) > 0.93 ? st(net.glowcube.realms.registry.ModBlocks.GLOWCRYSTAL_ORE) : st(net.glowcube.realms.registry.ModBlocks.SKYSTONE);
+				b.set(dx, y, dz, s);
+			}
+		}
+	}
+
+	private void stall(B b, int x, int z, net.minecraft.world.item.DyeColor color, String loot) {
+		for (int[] c : new int[][]{{-2, -2}, {2, -2}, {-2, 2}, {2, 2}}) b.fill(x + c[0], 1, z + c[1], x + c[0], 3, z + c[1], st(Blocks.SPRUCE_FENCE));
+		b.fill(x - 2, 4, z - 2, x + 2, 4, z + 2, Blocks.WOOL_SLAB.pick(color).defaultBlockState());
+		b.fill(x - 1, 1, z - 2, x + 1, 1, z - 2, st(Blocks.SPRUCE_PLANKS));
+		b.barrel(x - 1, 1, z + 2, loot);
+		b.set(x + 1, 1, z + 2, st(Blocks.CRAFTING_TABLE));
+		b.set(x, 3, z, st(Blocks.LANTERN).setValue(BlockStateProperties.HANGING, true));
+	}
+
+	/** Lumen Skies: a market on its own floating island with two merchants, stalls and updraft vents. */
+	private void skyMarket(B b) {
+		BlockState bricks = st(net.glowcube.realms.registry.ModBlocks.SKYSTONE_BRICKS), chis = st(net.glowcube.realms.registry.ModBlocks.CHISELED_SKYSTONE);
+		BlockState crystal = st(net.glowcube.realms.registry.ModBlocks.GLOWCRYSTAL_BLOCK);
+		this.skyIsland(b, 24, 16);
+		b.air(-24, 1, -24, 24, 14, 24);
+		for (int dx = -13; dx <= 13; dx++) for (int dz = -13; dz <= 13; dz++) if (dx * dx + dz * dz <= 169) b.set(dx, 0, dz, (dx + dz) % 4 == 0 ? chis : bricks);
+		// fountain
+		b.fill(-2, 1, -2, 2, 1, 2, bricks);
+		b.fill(-1, 1, -1, 1, 1, 1, st(Blocks.WATER));
+		b.fill(0, 1, 0, 0, 3, 0, chis);
+		b.set(0, 4, 0, crystal);
+		this.stall(b, -8, -6, net.minecraft.world.item.DyeColor.LIGHT_BLUE, "glowcube_realms:chests/sky_market");
+		this.stall(b, 8, -6, net.minecraft.world.item.DyeColor.MAGENTA, "glowcube_realms:chests/sky_market");
+		this.stall(b, -8, 7, net.minecraft.world.item.DyeColor.YELLOW, "glowcube_realms:chests/sky_market");
+		this.stall(b, 8, 7, net.minecraft.world.item.DyeColor.CYAN, "glowcube_realms:chests/sky_market");
+		for (int a = 0; a < 8; a++) {
+			int lx = (int) Math.round(Math.cos(a * Math.PI / 4) * 12), lz = (int) Math.round(Math.sin(a * Math.PI / 4) * 12);
+			b.fill(lx, 1, lz, lx, 2, lz, st(Blocks.SPRUCE_FENCE));
+			b.set(lx, 3, lz, st(Blocks.LANTERN));
+		}
+		// updraft vents at the edge and a lookout platform high above
+		b.set(-17, 0, 0, st(net.glowcube.realms.registry.ModBlocks.CLOUD_VENT));
+		b.set(17, 0, 0, st(net.glowcube.realms.registry.ModBlocks.CLOUD_VENT));
+		b.fill(18, 20, -3, 23, 20, 3, bricks);
+
+		b.chest(22, 21, 2, Direction.WEST, "glowcube_realms:chests/sky_ruin");
+		b.set(19, 21, -2, st(Blocks.LANTERN));
+		b.mob(net.glowcube.realms.registry.ModEntities.REALM_TRADER, -8, 1, -4);
+		b.mob(net.glowcube.realms.registry.ModEntities.REALM_TRADER, 8, 1, 5);
+	}
+
+	/** Lumen Skies: small floating ruin with a vent in the middle and some treasure. */
+	private void skyRuin(B b) {
+		RandomSource r = this.layout();
+		BlockState bricks = st(net.glowcube.realms.registry.ModBlocks.SKYSTONE_BRICKS), chis = st(net.glowcube.realms.registry.ModBlocks.CHISELED_SKYSTONE);
+		this.skyIsland(b, 10, 9);
+		b.air(-10, 1, -10, 10, 12, 10);
+		for (int dx = -6; dx <= 6; dx++) for (int dz = -6; dz <= 6; dz++) if (noise(dx, 1, dz) > 0.25) b.set(dx, 0, dz, bricks);
+		for (int[] p : new int[][]{{-5, -5}, {5, -5}, {-5, 5}, {5, 5}, {0, -6}, {0, 6}, {-6, 0}, {6, 0}}) {
+			int h = 2 + r.nextInt(5);
+			b.fill(p[0], 1, p[1], p[0], h, p[1], (p[0] + p[1]) % 2 == 0 ? chis : bricks);
+		}
+		b.fill(-5, 7, -5, 5, 7, -5, bricks);
+		b.air(-1 + r.nextInt(3), 7, -5, 2 + r.nextInt(3), 7, -5);
+		b.set(0, 0, 0, st(net.glowcube.realms.registry.ModBlocks.CLOUD_VENT));
+		b.chest(3, 1, 3, Direction.NORTH, "glowcube_realms:chests/sky_ruin");
+		b.set(-3, 1, -3, st(net.glowcube.realms.registry.ModBlocks.GLOWCRYSTAL_BLOCK));
+		b.set(-3, 1, 3, st(net.glowcube.realms.registry.ModBlocks.LUMEN_BLOOM));
+	}
+
+	/** Umbral Depths: a market in a carved cavern with merchants and soul lanterns. */
+	private void shadowBazaar(B b) {
+		BlockState stone = st(net.glowcube.realms.registry.ModBlocks.UMBRAL_STONE), bricks = st(net.glowcube.realms.registry.ModBlocks.UMBRAL_BRICKS);
+		BlockState chis = st(net.glowcube.realms.registry.ModBlocks.CHISELED_UMBRAL_STONE);
+		for (int dx = -17; dx <= 17; dx++) for (int dz = -17; dz <= 17; dz++) for (int dy = -2; dy <= 11; dy++) {
+			double e = (dx * dx + dz * dz) / 289.0 + (dy > 0 ? dy * dy / 121.0 : 0);
+			if (e > 1.0) continue;
+			if (dy == -2) b.foundation(dx, dz, -3, stone, 40);
+			if (dy <= 0) b.set(dx, dy, dz, dy == 0 ? ((dx + dz) % 3 == 0 ? chis : bricks) : stone);
+			else b.set(dx, dy, dz, e > 0.86 ? stone : st(Blocks.AIR));
+		}
+		// stalls, a shrine and hanging lights
+		this.stall(b, -8, -6, net.minecraft.world.item.DyeColor.PURPLE, "glowcube_realms:chests/shadow_bazaar");
+		this.stall(b, 8, -6, net.minecraft.world.item.DyeColor.BLACK, "glowcube_realms:chests/shadow_bazaar");
+		this.stall(b, 0, 9, net.minecraft.world.item.DyeColor.MAGENTA, "glowcube_realms:chests/shadow_bazaar");
+		b.fill(-1, 1, -1, 1, 1, 1, chis);
+		b.set(0, 2, 0, st(net.glowcube.realms.registry.ModBlocks.VOIDSHARD_BLOCK));
+		b.set(0, 3, 0, st(Blocks.SOUL_LANTERN));
+		for (int a = 0; a < 10; a++) {
+			int lx = (int) Math.round(Math.cos(a * Math.PI / 5) * 13), lz = (int) Math.round(Math.sin(a * Math.PI / 5) * 13);
+			b.fill(lx, 1, lz, lx, 3, lz, st(Blocks.DARK_OAK_FENCE));
+			b.set(lx, 4, lz, st(Blocks.SOUL_LANTERN));
+		}
+		// tunnels out of the cavern in four directions
+		b.air(-1, 1, 15, 1, 3, 24);
+		b.air(-1, 1, -24, 1, 3, -15);
+		b.air(15, 1, -1, 24, 3, 1);
+		b.air(-24, 1, -1, -15, 3, 1);
+		b.mob(net.glowcube.realms.registry.ModEntities.REALM_TRADER, -8, 1, -4);
+		b.mob(net.glowcube.realms.registry.ModEntities.REALM_TRADER, 8, 1, -4);
+		b.mob(net.glowcube.realms.registry.ModEntities.REALM_TRADER, 0, 1, 7);
+	}
+
+	/** Umbral Depths: an abandoned mine with long tunnels, rails, supports, ore veins and a crawler nest. */
+	private void umbralMine(B b) {
+		RandomSource r = this.layout();
+		BlockState planks = st(Blocks.DARK_OAK_PLANKS), fence = st(Blocks.DARK_OAK_FENCE), ore = st(net.glowcube.realms.registry.ModBlocks.VOIDSHARD_ORE);
+		BlockState stone = st(net.glowcube.realms.registry.ModBlocks.UMBRAL_STONE);
+		int[][] tunnels = {{-40, 0, 40, 0}, {0, -40, 0, 40}, {-24, -20, 24, -20}, {-24, 20, 24, 20}, {-20, -24, -20, 24}, {20, -24, 20, 24}};
+		for (int[] t : tunnels) {
+			boolean alongX = t[1] == t[3];
+			int len = alongX ? t[2] - t[0] : t[3] - t[1];
+			for (int i = 0; i <= len; i++) {
+				int x = alongX ? t[0] + i : t[0], z = alongX ? t[1] : t[1] + i;
+				for (int w = -1; w <= 1; w++) {
+					int wx = alongX ? x : x + w, wz = alongX ? z + w : z;
+					b.set(wx, -1, wz, noise(wx, -1, wz) > 0.75 ? st(Blocks.GRAVEL) : stone);
+					b.air(wx, 0, wz, wx, 2, wz);
+					// ore veins in the walls
+					if (noise(wx, 3, wz) > 0.92) b.set(wx, 3, wz, ore);
+				}
+				int sx = alongX ? 0 : 2, sz = alongX ? 2 : 0;
+				if (noise(x + sx, 1, z + sz) > 0.88) b.set(x + sx, 1, z + sz, ore);
+				if (noise(x - sx, 1, z - sz) > 0.88) b.set(x - sx, 1, z - sz, ore);
+				b.set(x, 0, z, Blocks.RAIL.defaultBlockState().setValue(BlockStateProperties.RAIL_SHAPE,
+						alongX ? net.minecraft.world.level.block.state.properties.RailShape.EAST_WEST : net.minecraft.world.level.block.state.properties.RailShape.NORTH_SOUTH));
+				if (i % 5 == 0) {
+					int ax = alongX ? x : x - 1, az = alongX ? z - 1 : z, bx = alongX ? x : x + 1, bz = alongX ? z + 1 : z;
+					b.fill(ax, 0, az, ax, 1, az, fence);
+					b.fill(bx, 0, bz, bx, 1, bz, fence);
+					for (int w = -1; w <= 1; w++) b.set(alongX ? x : x + w, 2, alongX ? z + w : z, planks);
+					if (i % 10 == 0) b.set(ax, 1, az, st(Blocks.SOUL_LANTERN));
+				}
+			}
+		}
+		// crossings get no rails, so carts do not derail into walls
+		for (int[] c : new int[][]{{0, 0}, {0, -20}, {0, 20}, {-20, 0}, {20, 0}, {-20, -20}, {20, -20}, {-20, 20}, {20, 20}}) b.set(c[0], 0, c[1], st(Blocks.AIR));
+		// alcoves with chests and supplies
+		for (int k = 0; k < 8; k++) {
+			int[] t = tunnels[r.nextInt(tunnels.length)];
+			boolean alongX = t[1] == t[3];
+			int i = 3 + r.nextInt(Math.max(1, (alongX ? t[2] - t[0] : t[3] - t[1]) - 6));
+			int x = alongX ? t[0] + i : t[0] + 2, z = alongX ? t[1] + 2 : t[1] + i;
+			b.air(x, 0, z, x, 1, z);
+			b.chest(x, 0, z, alongX ? Direction.NORTH : Direction.WEST, "glowcube_realms:chests/umbral_mine");
+		}
+		// foreman's room in the middle-north and a crawler nest in the south
+		b.room(-5, -1, -32, 5, 4, -26, planks);
+		b.air(-1, 0, -26, 1, 2, -26);
+		b.air(-1, 0, -32, 1, 2, -32);
+		b.set(-3, 0, -30, st(Blocks.CRAFTING_TABLE));
+		b.set(-2, 0, -30, st(Blocks.FURNACE));
+		b.chest(3, 0, -30, Direction.WEST, "glowcube_realms:chests/umbral_mine");
+		b.barrel(3, 0, -28, "glowcube_realms:chests/umbral_mine");
+		b.set(0, 3, -29, st(Blocks.SOUL_LANTERN).setValue(BlockStateProperties.HANGING, true));
+		b.air(-4, -1, 26, 4, 3, 32);
+		b.fill(-4, -2, 26, 4, -2, 32, stone);
+		b.spawner(0, -1, 29, net.glowcube.realms.registry.ModEntities.SHADE_CRAWLER);
+		for (int k = 0; k < 14; k++) b.set(r.nextInt(9) - 4, r.nextInt(4) - 1, 26 + r.nextInt(7), st(Blocks.COBWEB));
+		b.chest(3, -1, 31, Direction.WEST, "glowcube_realms:chests/umbral_mine");
+		b.fill(-4, 4, 30, 4, 4, 30, ore);
+	}
+
+	/** Sculk Realm: explorers' camp with a merchant, tents and a campfire. */
+	private void echoCamp(B b) {
+		for (int dx = -10; dx <= 10; dx++) for (int dz = -10; dz <= 10; dz++) {
+			b.foundation(dx, dz, -1, st(Blocks.DEEPSLATE), 8);
+			b.set(dx, 0, dz, noise(dx, 0, dz) > 0.5 ? st(Blocks.MOSS_BLOCK) : st(Blocks.SCULK));
+			b.air(dx, 1, dz, dx, 8, dz);
+		}
+		b.set(0, 1, 0, st(Blocks.SOUL_CAMPFIRE));
+		for (int[] l : new int[][]{{2, 0}, {-2, 0}, {0, 2}, {0, -2}}) b.set(l[0], 1, l[1], st(Blocks.SPRUCE_LOG));
+		for (int[] t : new int[][]{{-6, -5}, {6, -5}, {-6, 6}}) {
+			for (int k = 0; k < 3; k++) {
+				b.fill(t[0] - 2 + k, 1 + k, t[1] - 2, t[0] - 2 + k, 1 + k, t[1] + 2, Blocks.WOOL.pick(net.minecraft.world.item.DyeColor.CYAN).defaultBlockState());
+				b.fill(t[0] + 2 - k, 1 + k, t[1] - 2, t[0] + 2 - k, 1 + k, t[1] + 2, Blocks.WOOL.pick(net.minecraft.world.item.DyeColor.CYAN).defaultBlockState());
+			}
+			b.bed(t[0], 1, t[1] - 1, Direction.SOUTH, Blocks.BED.pick(net.minecraft.world.item.DyeColor.CYAN));
+		}
+		b.barrel(6, 1, 5, "glowcube_realms:chests/echo_camp");
+		b.barrel(7, 1, 5, "glowcube_realms:chests/echo_camp");
+		b.set(6, 1, 7, st(Blocks.CARTOGRAPHY_TABLE));
+		b.set(5, 1, 7, st(Blocks.LECTERN));
+		for (int[] l : new int[][]{{-9, 0}, {9, 0}, {0, 9}, {0, -9}}) {
+			b.fill(l[0], 1, l[1], l[0], 2, l[1], st(Blocks.SPRUCE_FENCE));
+			b.set(l[0], 3, l[1], st(Blocks.SOUL_LANTERN));
+		}
+		b.mob(net.glowcube.realms.registry.ModEntities.REALM_TRADER, 3, 1, 3);
+	}
+
+	/** Sculk Realm: ruins of an ancient city with shriekers, stalker spawners and echo treasure. */
+	private void echoRuin(B b) {
+		RandomSource r = this.layout();
+		BlockState bricks = st(Blocks.DEEPSLATE_BRICKS), tiles = st(Blocks.DEEPSLATE_TILES), polished = st(Blocks.POLISHED_DEEPSLATE);
+		BlockState cracked = st(Blocks.CRACKED_DEEPSLATE_BRICKS), reinforced = st(Blocks.REINFORCED_DEEPSLATE), sculk = st(Blocks.SCULK);
+		for (int dx = -18; dx <= 18; dx++) for (int dz = -18; dz <= 18; dz++) {
+			b.foundation(dx, dz, -1, bricks, 10);
+			b.set(dx, 0, dz, noise(dx, 0, dz) > 0.7 ? sculk : (dx + dz) % 2 == 0 ? tiles : polished);
+			b.air(dx, 1, dz, dx, 14, dz);
+		}
+		// broken walls around the plaza
+		for (int d = -18; d <= 18; d++) for (int[] p : new int[][]{{d, -18}, {d, 18}, {-18, d}, {18, d}}) {
+			int h = (int) (noise(p[0], 2, p[1]) * 7);
+			if (Math.abs(d) <= 2) continue;
+			b.fill(p[0], 1, p[1], p[0], h, p[1], noise(p[0], 3, p[1]) > 0.5 ? cracked : bricks);
+		}
+		// the great frame in the middle (an old portal of the realm)
+		b.fill(-5, 1, -1, 5, 1, 1, polished);
+		for (int y = 1; y <= 11; y++) {
+			b.set(-5, y, 0, reinforced);
+			b.set(5, y, 0, reinforced);
+		}
+		b.fill(-5, 11, 0, 5, 12, 0, reinforced);
+		b.set(0, 12, 0, st(net.glowcube.realms.registry.ModBlocks.ECHO_CRYSTAL_BLOCK));
+		// side halls with treasure, sensors and shriekers
+		for (int side : new int[]{-1, 1}) {
+			int cx = side * 11;
+			b.room(cx - 4, 0, -6, cx + 4, 6, 6, bricks);
+			b.air(cx - side * 4, 1, -1, cx - side * 4, 3, 1);
+			for (int k = 0; k < 5; k++) b.set(cx - 4 + 2 * k, 6, -6 + r.nextInt(13), st(Blocks.AIR));
+			b.chest(cx + side * 3, 1, 0, side < 0 ? Direction.EAST : Direction.WEST, "glowcube_realms:chests/echo_ruin");
+			b.chest(cx, 1, 5, Direction.NORTH, "glowcube_realms:chests/echo_ruin");
+			b.set(cx - 2, 1, -4, st(Blocks.SCULK_SHRIEKER));
+			b.set(cx + 2, 1, -4, st(Blocks.SCULK_SENSOR));
+			b.set(cx, 1, -4, st(Blocks.SOUL_LANTERN));
+			b.spawner(cx, 1, 3, net.glowcube.realms.registry.ModEntities.SCULK_STALKER);
+		}
+		for (int k = 0; k < 10; k++) b.set(r.nextInt(31) - 15, 1, r.nextInt(31) - 15, k % 3 == 0 ? st(Blocks.SCULK_SENSOR) : st(Blocks.CANDLE).setValue(BlockStateProperties.LIT, true));
+		for (int[] l : new int[][]{{-8, -12}, {8, -12}, {-8, 12}, {8, 12}}) {
+			b.fill(l[0], 1, l[1], l[0], 4, l[1], st(Blocks.POLISHED_DEEPSLATE_WALL));
+			b.set(l[0], 5, l[1], st(Blocks.SOUL_LANTERN));
+		}
+		b.chest(0, 1, -10, Direction.SOUTH, "glowcube_realms:chests/echo_ruin");
 	}
 
 	// ================================================================== Grand Igloo

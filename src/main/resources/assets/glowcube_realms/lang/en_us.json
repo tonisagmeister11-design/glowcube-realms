@@ -329,5 +329,9 @@
   "message.glowcube_realms.sculk_portal_open": "The way to the Sculk Realm is open!",
   "biome.glowcube_realms.sculk_plains": "Sculk Plains",
   "biome.glowcube_realms.echo_forest": "Echo Forest",
-  "biome.glowcube_realms.sculk_spires": "Sculk Spires"
+  "biome.glowcube_realms.sculk_spires": "Sculk Spires",
+  "block.glowcube_realms.cloud_vent": "Cloud Vent",
+  "entity.glowcube_realms.realm_trader": "Realm Trader",
+  "item.glowcube_realms.realm_trader_spawn_egg": "Realm Trader Spawn Egg",
+  "block.glowcube_realms.cloud_vent.lore1": "Carries you up to 24 blocks into the sky. Sneak to stand on it."
 }

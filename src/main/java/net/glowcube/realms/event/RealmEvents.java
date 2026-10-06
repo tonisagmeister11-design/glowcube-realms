@@ -37,6 +37,7 @@ import net.minecraft.world.phys.AABB;
 
 /** Server-side gameplay hooks: realm travel by sky and void, armor set bonuses, village guards, loot. */
 public final class RealmEvents {
+	private static final String SKYFALL_TAG = "glowcube_skyfall";
 	private static final net.minecraft.tags.TagKey<net.minecraft.world.level.levelgen.structure.Structure> UNUSED_BOSS_ARENAS =
 			net.minecraft.tags.TagKey.create(Registries.STRUCTURE, GlowcubeRealms.id("boss_arenas"));
 	private static final Set<ResourceKey<LootTable>> INJECT_TARGETS = Set.of(
@@ -70,6 +71,11 @@ public final class RealmEvents {
 	private static void tick(MinecraftServer server) {
 		int t = server.getTickCount();
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+			if (player.entityTags().contains(SKYFALL_TAG) && (player.onGround() || player.isInWater() || player.getAbilities().flying)) {
+				player.removeEffect(MobEffects.SLOW_FALLING);
+				player.removeTag(SKYFALL_TAG);
+			}
+			if (net.glowcube.realms.block.CloudVentBlock.ventHeight(player.level(), player) >= 0) player.resetFallDistance();
 			if (t % 5 == 0) travel(server, player);
 			if (t % 20 == 0) setBonuses(player);
 			if (t % 100 == 0) ModNetworking.sendMarkers(player);
@@ -85,12 +91,18 @@ public final class RealmEvents {
 			ServerLevel lumen = server.getLevel(RealmDimensions.LUMEN_SKIES);
 			if (lumen != null) {
 				RealmTeleporter.sendTo(player, lumen, player.getX(), player.getZ(), 240.0, true);
+				player.addTag(SKYFALL_TAG);
 				player.sendOverlayMessage(Component.translatable("message.glowcube_realms.arrived_lumen_skies"));
 			}
 		} else if (dim == RealmDimensions.LUMEN_SKIES && player.getY() < -24) {
+			// arrive a short glide above the ground; the slow falling ends as soon as the player lands
 			ServerLevel overworld = server.overworld();
-			RealmTeleporter.sendTo(player, overworld, player.getX(), player.getZ(), 330.0, true);
-			player.fallDistance = 0;
+			BlockPos column = BlockPos.containing(player.getX(), 0, player.getZ());
+			overworld.getChunk(column);
+			int ground = overworld.getHeight(Heightmap.Types.MOTION_BLOCKING, column.getX(), column.getZ());
+			RealmTeleporter.sendTo(player, overworld, player.getX(), player.getZ(), (double) Math.min(ground + 40, overworld.getMaxY() - 2), true);
+			player.resetFallDistance();
+			player.addTag(SKYFALL_TAG);
 			player.sendOverlayMessage(Component.translatable("message.glowcube_realms.fell_from_sky"));
 		} else if (dim == Level.OVERWORLD && player.getY() < -100) {
 			ServerLevel umbral = server.getLevel(RealmDimensions.UMBRAL_DEPTHS);

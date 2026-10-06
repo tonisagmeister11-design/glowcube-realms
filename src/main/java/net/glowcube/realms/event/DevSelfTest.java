@@ -130,12 +130,23 @@ public final class DevSelfTest {
 				}
 				return;
 			}
+			if (cmd.equals("trades")) {
+				// logs the offers of every realm trader
+				for (net.minecraft.server.level.ServerLevel lvl : server.getAllLevels())
+					for (net.minecraft.world.entity.Entity e : lvl.getAllEntities())
+						if (e instanceof net.glowcube.realms.entity.RealmTrader t) {
+							StringBuilder sb = new StringBuilder();
+							for (var o : t.getOffers()) sb.append(o.getCostA().getCount()).append("x").append(o.getCostA().getItem()).append("->").append(o.getResult().getItem()).append(" ");
+							GlowcubeRealms.LOGGER.info("[SelfTest] trader in {} variant {} at {}: {}", lvl.dimension().identifier(), t.getVariant(), t.blockPosition(), sb);
+						}
+				return;
+			}
 			if (cmd.startsWith("count ")) {
 				// "count <dim>": logs mod entities per type in that dimension
 				String[] a = cmd.split(" ");
 				net.minecraft.server.level.ServerLevel lvl = server.getLevel(net.minecraft.resources.ResourceKey.create(net.minecraft.core.registries.Registries.DIMENSION, net.minecraft.resources.Identifier.parse(a[1])));
 				java.util.Map<String, Integer> counts = new java.util.TreeMap<>();
-				for (net.minecraft.world.entity.Entity e : lvl.getAllEntities()) counts.merge(e.getType().toShortString(), 1, Integer::sum);
+				for (net.minecraft.world.entity.Entity e : lvl.getAllEntities()) counts.merge(e instanceof net.minecraft.world.entity.item.ItemEntity it ? "item:" + it.getItem().getItem() : e.getType().toShortString(), 1, Integer::sum);
 				GlowcubeRealms.LOGGER.info("[SelfTest] count {} -> {}", a[1], counts);
 				return;
 			}

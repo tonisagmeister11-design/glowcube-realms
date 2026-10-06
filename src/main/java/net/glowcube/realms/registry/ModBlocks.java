@@ -69,6 +69,9 @@ public final class ModBlocks {
 	public static final Block LUMEN_PORTAL = registerNoItem("lumen_portal", p -> new RealmPortalBlock(RealmDimensions.LUMEN_SKIES, p), portal(MapColor.COLOR_LIGHT_BLUE));
 	public static final Block UMBRAL_PORTAL = registerNoItem("umbral_portal", p -> new RealmPortalBlock(RealmDimensions.UMBRAL_DEPTHS, p), portal(MapColor.COLOR_PURPLE));
 
+	public static final Block CLOUD_VENT = register("cloud_vent", net.glowcube.realms.block.CloudVentBlock::new,
+			BlockBehaviour.Properties.of().mapColor(MapColor.SNOW).strength(1.5F, 6.0F).sound(SoundType.AMETHYST).lightLevel(s -> 8));
+
 	// ------------------------------------------------------------ Sculk Realm
 	public static final Block SCULK_PORTAL = registerNoItem("sculk_portal", p -> new RealmPortalBlock(RealmDimensions.SCULK_REALM, p), portal(MapColor.COLOR_CYAN));
 	public static final Block SCULK_KEYHOLE = register("sculk_keyhole", net.glowcube.realms.block.SculkKeyholeBlock::new,

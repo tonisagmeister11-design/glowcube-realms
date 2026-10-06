@@ -204,6 +204,7 @@ public final class ModItems {
 	public static final Item CRYSTAL_GOLEM_SPAWN_EGG = egg("crystal_golem_spawn_egg", ModEntities.CRYSTAL_GOLEM);
 	public static final Item SHADE_CRAWLER_SPAWN_EGG = egg("shade_crawler_spawn_egg", ModEntities.SHADE_CRAWLER);
 	public static final Item REALM_GUARDIAN_SPAWN_EGG = egg("realm_guardian_spawn_egg", ModEntities.REALM_GUARDIAN);
+	public static final Item REALM_TRADER_SPAWN_EGG = egg("realm_trader_spawn_egg", ModEntities.REALM_TRADER);
 	public static final Item GLOWKEEPER_SPAWN_EGG = egg("glowkeeper_spawn_egg", ModEntities.GLOWKEEPER);
 	public static final Item UMBRAL_TYRANT_SPAWN_EGG = egg("umbral_tyrant_spawn_egg", ModEntities.UMBRAL_TYRANT);
 	public static final Item EMBER_WARDEN_SPAWN_EGG = egg("ember_warden_spawn_egg", ModEntities.EMBER_WARDEN);
