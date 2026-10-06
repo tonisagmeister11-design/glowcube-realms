@@ -79,7 +79,7 @@ public final class RealmEvents {
 			if (t % 5 == 0) travel(server, player);
 			if (t % 20 == 0) setBonuses(player);
 			if (t % 100 == 0) ModNetworking.sendMarkers(player);
-			if (t % 400 == (player.getId() & 31)) guardVillages(player);
+			if (t % 200 == (player.getId() & 31)) guardVillages(player);
 			if (t % 600 == (player.getId() * 37) % 600) locateArenas(player);
 		}
 	}
@@ -179,18 +179,19 @@ public final class RealmEvents {
 		BlockPos at = anchor.blockPosition().offset(level.getRandom().nextInt(9) - 4, 0, level.getRandom().nextInt(9) - 4);
 		at = new BlockPos(at.getX(), level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, at.getX(), at.getZ()), at.getZ());
 		if (at.distSqr(player.blockPosition()) < 10 * 10) return;
-		// one action per check: villagers first, then the golem, then guards; dead guards are replaced over time like iron golems
-		if (villagers.size() < 20) {
-			spawn(level, net.minecraft.world.entity.EntityTypes.VILLAGER.create(level, EntitySpawnReason.BREEDING), at);
-			return;
-		}
-		if (level.getEntitiesOfClass(net.minecraft.world.entity.animal.golem.IronGolem.class, area).isEmpty()) {
+		// every check: one villager until there are 20, the golem if it is missing, and up to three guards;
+		// dead guards are replaced over time like iron golems
+		if (villagers.size() < 20) spawn(level, net.minecraft.world.entity.EntityTypes.VILLAGER.create(level, EntitySpawnReason.BREEDING), at);
+		if (level.getEntitiesOfClass(net.minecraft.world.entity.animal.golem.IronGolem.class, area).isEmpty())
 			spawn(level, net.minecraft.world.entity.EntityTypes.IRON_GOLEM.create(level, EntitySpawnReason.MOB_SUMMONED), at);
-			return;
-		}
 		int guards = level.getEntitiesOfClass(RealmGuardian.class, area).size();
-		int wanted = Math.max(4, Math.min(9, 2 + villagers.size() / 3));
-		if (guards < wanted) spawn(level, ModEntities.REALM_GUARDIAN.create(level, EntitySpawnReason.EVENT), at);
+		// about one guard for every two villagers (20 villagers -> 14 guards), up to three new ones per check
+		int wanted = Math.max(8, Math.min(16, 4 + villagers.size() / 2));
+		for (int k = 0; k < 3 && guards + k < wanted; k++) {
+			BlockPos p = at.offset(level.getRandom().nextInt(7) - 3, 0, level.getRandom().nextInt(7) - 3);
+			p = new BlockPos(p.getX(), level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, p.getX(), p.getZ()), p.getZ());
+			spawn(level, ModEntities.REALM_GUARDIAN.create(level, EntitySpawnReason.EVENT), p);
+		}
 	}
 
 	private static void spawn(ServerLevel level, net.minecraft.world.entity.Mob mob, BlockPos at) {
