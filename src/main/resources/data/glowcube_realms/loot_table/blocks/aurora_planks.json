@@ -1,0 +1,1 @@
+{"type":"minecraft:block","pools":[{"condition":{"type":"minecraft:survives_explosion"},"entries":[{"type":"minecraft:item","name":"glowcube_realms:aurora_planks"}],"rolls":1}],"random_sequence":"glowcube_realms:blocks/aurora_planks"}

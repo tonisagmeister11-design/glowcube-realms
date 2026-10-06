@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","key":{"I":"minecraft:blue_ice","H":"glowcube_realms:frost_heart","S":"glowcube_realms:glowcrystal_sword"},"pattern":[" I "," H "," S "],"result":{"count":1,"id":"glowcube_realms:frostbite_blade"}}

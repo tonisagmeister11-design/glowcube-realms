@@ -1,0 +1,20 @@
+{
+  "default_block": "glowcube_realms:skystone",
+  "default_fluid": "minecraft:water",
+  "disable_mob_generation": false,
+  "legacy_random_source": false,
+  "material_rule": "glowcube_realms:lumen_skies",
+  "noise": {"height": 256, "min_y": 0},
+  "noise_router": {
+    "chunk_surface_level": 0.0,
+    "continents": 0.0,
+    "depth": 0.0,
+    "erosion": 0.0,
+    "ridges": 0.0,
+    "temperature": {"type": "minecraft:noise", "noise": "minecraft:nether/temperature", "xz_scale": 0.2, "y_scale": 0.0},
+    "vegetation": {"type": "minecraft:noise", "noise": "minecraft:nether/vegetation", "xz_scale": 0.2, "y_scale": 0.0},
+    "final_density": {"type":"minecraft:squeeze","input":{"type":"minecraft:interpolated","cell_size_xz":4,"cell_size_y":4,"input":{"type":"minecraft:max","left":{"type":"minecraft:add","left":{"type":"minecraft:mul","left":1.1,"right":{"type":"minecraft:noise","noise":"minecraft:nether/vegetation","xz_scale":1.4,"y_scale":0.0}},"right":{"type":"minecraft:add","left":{"type":"minecraft:mul","left":0.3,"right":{"type":"minecraft:old_blended_noise","smear_scale_multiplier":6.0,"xz_factor":110.0,"xz_scale":0.22,"y_factor":90.0,"y_scale":0.3}},"right":{"type":"minecraft:add","left":-0.4,"right":{"type":"minecraft:add","left":{"type":"minecraft:gradient","axis":"y","from_coordinate":40,"from_value":-0.42,"to_coordinate":128,"to_value":0.0},"right":{"type":"minecraft:add","left":{"type":"minecraft:gradient","axis":"y","from_coordinate":128,"from_value":0.0,"to_coordinate":142,"to_value":-3.0},"right":{"type":"minecraft:gradient","axis":"y","from_coordinate":28,"from_value":-3.0,"to_coordinate":40,"to_value":0.0}}}}}},"right":{"type":"minecraft:max","left":{"type":"minecraft:add","left":{"type":"minecraft:mul","left":1.0,"right":{"type":"minecraft:noise","noise":"minecraft:nether/temperature","xz_scale":2.4,"y_scale":0.0}},"right":{"type":"minecraft:add","left":{"type":"minecraft:mul","left":0.3,"right":{"type":"minecraft:old_blended_noise","smear_scale_multiplier":6.0,"xz_factor":110.0,"xz_scale":0.22,"y_factor":90.0,"y_scale":0.3}},"right":{"type":"minecraft:add","left":-0.52,"right":{"type":"minecraft:add","left":{"type":"minecraft:gradient","axis":"y","from_coordinate":120,"from_value":-0.42,"to_coordinate":186,"to_value":0.0},"right":{"type":"minecraft:add","left":{"type":"minecraft:gradient","axis":"y","from_coordinate":186,"from_value":0.0,"to_coordinate":200,"to_value":-3.0},"right":{"type":"minecraft:gradient","axis":"y","from_coordinate":108,"from_value":-3.0,"to_coordinate":120,"to_value":0.0}}}}}},"right":{"type":"minecraft:add","left":{"type":"minecraft:mul","left":1.0,"right":{"type":"minecraft:noise","noise":"minecraft:temperature","xz_scale":1.1,"y_scale":0.0}},"right":{"type":"minecraft:add","left":{"type":"minecraft:mul","left":0.3,"right":{"type":"minecraft:old_blended_noise","smear_scale_multiplier":6.0,"xz_factor":110.0,"xz_scale":0.22,"y_factor":90.0,"y_scale":0.3}},"right":{"type":"minecraft:add","left":-0.5,"right":{"type":"minecraft:add","left":{"type":"minecraft:gradient","axis":"y","from_coordinate":20,"from_value":-0.42,"to_coordinate":84,"to_value":0.0},"right":{"type":"minecraft:add","left":{"type":"minecraft:gradient","axis":"y","from_coordinate":84,"from_value":0.0,"to_coordinate":98,"to_value":-3.0},"right":{"type":"minecraft:gradient","axis":"y","from_coordinate":8,"from_value":-3.0,"to_coordinate":20,"to_value":0.0}}}}}}}}}}
+  },
+  "sea_level": 0,
+  "spawn_target": []
+}

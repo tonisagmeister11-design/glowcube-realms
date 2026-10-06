@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","key":{"V":"glowcube_realms:voidshard_block","E":"glowcube_realms:herald_eye","R":"minecraft:end_rod"},"pattern":[" V","E ","R "],"result":{"count":1,"id":"glowcube_realms:void_reaver"}}

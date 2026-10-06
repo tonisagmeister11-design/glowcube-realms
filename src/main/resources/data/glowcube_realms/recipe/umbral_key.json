@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","key":{"O":"minecraft:crying_obsidian","E":"minecraft:ender_pearl","I":"minecraft:iron_ingot"},"pattern":[" OE"," IO","I  "],"result":{"count":1,"id":"glowcube_realms:umbral_key"}}

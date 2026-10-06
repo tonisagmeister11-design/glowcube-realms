@@ -1,0 +1,15 @@
+{
+  "type": "glowcube_realms:umbral_depths",
+  "generator": {
+    "type": "minecraft:noise",
+    "settings": "glowcube_realms:umbral_depths",
+    "biome_source": {
+      "type": "minecraft:multi_noise",
+      "biomes": [
+        {"biome": "glowcube_realms:umbral_caverns", "parameters": {"temperature": [-1.0, 0.1], "humidity": 0.0, "continentalness": 0.0, "erosion": 0.0, "weirdness": 0.0, "depth": 0.0, "offset": 0.0}},
+        {"biome": "glowcube_realms:shadecap_forest", "parameters": {"temperature": [0.1, 0.5], "humidity": 0.0, "continentalness": 0.0, "erosion": 0.0, "weirdness": 0.0, "depth": 0.0, "offset": 0.0}},
+        {"biome": "glowcube_realms:void_rift", "parameters": {"temperature": [0.5, 1.0], "humidity": 0.0, "continentalness": 0.0, "erosion": 0.0, "weirdness": 0.0, "depth": 0.0, "offset": 0.0}}
+      ]
+    }
+  }
+}

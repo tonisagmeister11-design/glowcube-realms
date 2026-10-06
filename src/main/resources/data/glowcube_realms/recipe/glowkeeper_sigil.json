@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","key":{"G":"minecraft:gold_ingot","S":"glowcube_realms:glow_shard","B":"glowcube_realms:glowcrystal_block"},"pattern":["GSG","SBS","GSG"],"result":{"count":1,"id":"glowcube_realms:glowkeeper_sigil"}}

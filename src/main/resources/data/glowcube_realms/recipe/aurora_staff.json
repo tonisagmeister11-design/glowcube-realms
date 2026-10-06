@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","key":{"W":"glowcube_realms:wisp_essence","G":"glowcube_realms:glowcrystal_block","L":"glowcube_realms:aurora_log"},"pattern":[" WG"," LW","L  "],"result":{"count":1,"id":"glowcube_realms:aurora_staff"}}

@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 1,
+	"id": "glowcube_realms",
+	"version": "${version}",
+	"name": "Glowcube's Realms",
+	"description": "Zwei neue Dimensionen, neue Mobs, Bossfights, Glow-Ausruestung und eine Minimap - von Glowcube.",
+	"authors": ["Glowcube"],
+	"license": "All-Rights-Reserved",
+	"icon": "assets/glowcube_realms/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": ["net.glowcube.realms.GlowcubeRealms"],
+		"client": ["net.glowcube.realms.client.GlowcubeRealmsClient"]
+	},
+	"mixins": [
+		{
+			"config": "glowcube_realms.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

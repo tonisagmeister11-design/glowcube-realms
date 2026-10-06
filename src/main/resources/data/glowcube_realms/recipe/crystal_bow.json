@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","key":{"G":"glowcube_realms:glow_shard","S":"minecraft:string","P":"glowcube_realms:aurora_planks"},"pattern":[" GS","P S"," GS"],"result":{"count":1,"id":"glowcube_realms:crystal_bow"}}

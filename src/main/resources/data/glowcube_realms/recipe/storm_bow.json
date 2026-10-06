@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","key":{"F":"glowcube_realms:storm_feather","S":"minecraft:string","B":"glowcube_realms:crystal_bow"},"pattern":[" FS","B S"," FS"],"result":{"count":1,"id":"glowcube_realms:storm_bow"}}

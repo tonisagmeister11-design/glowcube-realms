@@ -1,0 +1,15 @@
+{
+  "type": "glowcube_realms:lumen_skies",
+  "generator": {
+    "type": "minecraft:noise",
+    "settings": "glowcube_realms:lumen_skies",
+    "biome_source": {
+      "type": "minecraft:multi_noise",
+      "biomes": [
+        {"biome": "glowcube_realms:lumen_meadows", "parameters": {"temperature": [-1.0, 0.0], "humidity": [-1.0, 1.0], "continentalness": 0.0, "erosion": 0.0, "weirdness": 0.0, "depth": 0.0, "offset": 0.0}},
+        {"biome": "glowcube_realms:aurora_forest", "parameters": {"temperature": [0.0, 0.45], "humidity": [-1.0, 1.0], "continentalness": 0.0, "erosion": 0.0, "weirdness": 0.0, "depth": 0.0, "offset": 0.0}},
+        {"biome": "glowcube_realms:crystal_peaks", "parameters": {"temperature": [0.45, 1.0], "humidity": [-1.0, 1.0], "continentalness": 0.0, "erosion": 0.0, "weirdness": 0.0, "depth": 0.0, "offset": 0.0}}
+      ]
+    }
+  }
+}

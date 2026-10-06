@@ -1,0 +1,1 @@
+{"type":"minecraft:huge_red_mushroom","can_place_on":{"type":"minecraft:matching_block_tag","tag":"minecraft:dirt"},"cap_provider":{"id":"glowcube_realms:shadecap_block"},"stem_provider":{"id":"glowcube_realms:shadecap_stem","properties":{"axis":"y"}}}

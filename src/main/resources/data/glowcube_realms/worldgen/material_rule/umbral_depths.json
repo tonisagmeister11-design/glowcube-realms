@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:sequence",
+  "sequence": [
+    "minecraft:bedrock_floor",
+    "minecraft:bedrock_roof",
+    {"type": "minecraft:condition", "if_true": {"type": "minecraft:biome", "biome_is": ["glowcube_realms:void_rift"]},
+      "then_run": {"type": "minecraft:condition", "if_true": "minecraft:on_floor", "then_run": {"type": "minecraft:block", "result_state": "glowcube_realms:umbral_bricks"}}},
+    {"type": "minecraft:condition", "if_true": "minecraft:on_floor", "then_run": {"type": "minecraft:block", "result_state": "glowcube_realms:umbral_moss"}}
+  ]
+}

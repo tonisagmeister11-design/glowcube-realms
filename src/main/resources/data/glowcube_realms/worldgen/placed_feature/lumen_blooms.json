@@ -1,0 +1,1 @@
+{"feature":"glowcube_realms:lumen_bloom","placement":[{"type":"minecraft:count","count":28},{"type":"minecraft:in_square"},{"type":"minecraft:heightmap","heightmap":"MOTION_BLOCKING"},{"type":"minecraft:biome"},{"type":"minecraft:block_predicate_filter","predicate":{"type":"minecraft:would_survive","state":"glowcube_realms:lumen_bloom"}}]}

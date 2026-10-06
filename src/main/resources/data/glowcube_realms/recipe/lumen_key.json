@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","key":{"G":"minecraft:glowstone_dust","D":"minecraft:diamond","I":"minecraft:gold_ingot"},"pattern":[" GD"," IG","I  "],"result":{"count":1,"id":"glowcube_realms:lumen_key"}}

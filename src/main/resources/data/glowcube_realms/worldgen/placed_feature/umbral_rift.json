@@ -1,0 +1,1 @@
+{"feature":"glowcube_realms:umbral_rift","placement":[{"type":"minecraft:rarity_filter","chance":70},{"type":"minecraft:in_square"},{"type":"minecraft:height_range","height":{"type":"minecraft:uniform","max_inclusive":{"absolute":10},"min_inclusive":{"absolute":-54}}},{"type":"minecraft:biome"}]}

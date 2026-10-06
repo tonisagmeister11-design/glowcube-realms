@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","key":{"G":"minecraft:glowstone","D":"minecraft:diamond","C":"minecraft:compass"},"pattern":["GDG","DCD","GDG"],"result":{"count":1,"id":"glowcube_realms:lumen_compass"}}

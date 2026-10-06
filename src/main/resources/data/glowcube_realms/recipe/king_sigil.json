@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","key":{"B":"minecraft:bone_block","S":"glowcube_realms:void_shard","G":"minecraft:gold_block"},"pattern":["BSB","SGS","BSB"],"result":{"count":1,"id":"glowcube_realms:king_sigil"}}

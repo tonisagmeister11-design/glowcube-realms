@@ -1,0 +1,1 @@
+{"type":"minecraft:crafting_shaped","category":"misc","key":{"G":"minecraft:gold_ingot","M":"minecraft:magma_cream","B":"minecraft:magma_block"},"pattern":["GMG","MBM","GMG"],"result":{"count":1,"id":"glowcube_realms:colossus_sigil"}}
