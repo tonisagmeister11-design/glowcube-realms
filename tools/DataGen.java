@@ -46,7 +46,9 @@ public class DataGen {
 		Update3.all();
 		Update4.all();
 		Update5.all();
+		Update6.all();
 		flushTags();
+		checkReferences();
 		System.out.println("Data written.");
 	}
 
@@ -1519,5 +1521,81 @@ public class DataGen {
 			t.put("block." + NS + ".cloud_vent.lore1", new String[]{"Carries you up to 24 blocks into the sky. Sneak to stand on it.",
 					"Trägt dich bis zu 24 Blöcke in den Himmel. Schleichen, um darauf zu stehen."});
 		}
+	}
+
+	// ================================================================ UPDATE 6 (1.5.0): 3D held weapons
+	/**
+	 * Every weapon and tool gets an element model (models/item/<name>_3d.json, geometry defined in
+	 * TextureGen.models3d() next to its painted texture sheet). The item definition shows the flat sprite in
+	 * inventories, on the ground, in item frames and on shelves, and the 3D model everywhere else (hands, armor stands).
+	 */
+	static class Update6 {
+		static final String FLAT = "[\"gui\",\"ground\",\"fixed\",\"on_shelf\"]";
+
+		static void all() throws IOException {
+			List<String> names = new ArrayList<>();
+			for (TextureGen.Model3D m : TextureGen.models3d()) {
+				write(ASSETS.resolve("models/item/" + m.name + "_3d.json"), m.json(NS));
+				names.add(m.name);
+			}
+			for (String name : names) {
+				if (name.contains("_pulling_")) continue;
+				String flat, held;
+				if (name.endsWith("_bow")) {
+					flat = bowChain(name, "");
+					held = bowChain(name, "_3d");
+				} else {
+					flat = model(name);
+					held = model(name + "_3d");
+				}
+				write(ASSETS.resolve("items/" + name + ".json"), "{\"model\":{\"type\":\"minecraft:select\",\"property\":\"minecraft:display_context\",\"cases\":[{\"when\":"
+						+ FLAT + ",\"model\":" + flat + "}],\"fallback\":" + held + "}}");
+			}
+		}
+
+		static String model(String m) {
+			return "{\"type\":\"minecraft:model\",\"model\":\"" + NS + ":item/" + m + "\"}";
+		}
+
+		static String bowChain(String bow, String suffix) {
+			return "{\"type\":\"minecraft:condition\",\"property\":\"minecraft:using_item\",\"on_false\":" + model(bow + suffix) + ",\"on_true\":{\"type\":\"minecraft:range_dispatch\","
+					+ "\"property\":\"minecraft:use_duration\",\"scale\":0.05,\"entries\":[{\"threshold\":0.65,\"model\":" + model(bow + "_pulling_1" + suffix) + "},{\"threshold\":0.9,\"model\":"
+					+ model(bow + "_pulling_2" + suffix) + "}],\"fallback\":" + model(bow + "_pulling_0" + suffix) + "}}";
+		}
+	}
+
+	// ================================================================ reference check
+	/** Fails the run if any JSON asset points to a model or texture of this mod that does not exist. */
+	static void checkReferences() throws IOException {
+		java.util.regex.Pattern ref = java.util.regex.Pattern.compile("\"([a-z_0-9]+)\"\\s*:\\s*\"" + NS + ":([a-z_0-9/]+)\"");
+		List<String> missing = new ArrayList<>();
+		int checked = 0;
+		for (String dir : new String[]{"items", "blockstates", "models", "equipment"}) {
+			Path base = ASSETS.resolve(dir);
+			if (!Files.exists(base)) continue;
+			List<Path> files;
+			try (var s = Files.walk(base)) {
+				files = s.filter(p -> p.toString().endsWith(".json")).toList();
+			}
+			for (Path file : files) {
+				java.util.regex.Matcher m = ref.matcher(Files.readString(file));
+				while (m.find()) {
+					String key = m.group(1), id = m.group(2);
+					List<Path> want = new ArrayList<>();
+					if (key.equals("model") || key.equals("parent")) want.add(ASSETS.resolve("models/" + id + ".json"));
+					else if (dir.equals("equipment")) {
+						want.add(ASSETS.resolve("textures/entity/equipment/humanoid/" + id + ".png"));
+						want.add(ASSETS.resolve("textures/entity/equipment/humanoid_leggings/" + id + ".png"));
+					} else want.add(ASSETS.resolve("textures/" + id + ".png"));
+					for (Path w : want) {
+						checked++;
+						if (!Files.exists(w)) missing.add(ASSETS.relativize(file) + " -> " + key + " " + id);
+					}
+				}
+			}
+		}
+		System.out.println("Reference check: " + checked + " references, " + missing.size() + " missing.");
+		for (String s : missing) System.out.println("  MISSING " + s);
+		if (!missing.isEmpty()) throw new IllegalStateException("missing model/texture references");
 	}
 }

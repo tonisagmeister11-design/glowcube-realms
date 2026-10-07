@@ -45,6 +45,7 @@ public class TextureGen {
 		items();
 		items2();
 		items3();
+		weapons3d();
 		equipment();
 		gui();
 		EntityTex.all();
@@ -758,64 +759,119 @@ public class TextureGen {
 		save(altar(SHADOW_STEEL, GOLD, EMBER, 55, false), "block/warden_altar_side");
 	}
 
+	/** All palette colours but the brightest (kept for highlights). */
+	static int[] body(int[] pal) {
+		return java.util.Arrays.copyOf(pal, Math.max(2, pal.length - 1));
+	}
+
+	/** Wrapped Voronoi helper: {nearest distance, second distance, nearest index}. */
+	static double[] voronoi(double[][] pts, double x, double y) {
+		double best = 1e9, second = 1e9;
+		int bi = 0;
+		for (int i = 0; i < pts.length; i++) for (int ox = -16; ox <= 16; ox += 16) for (int oy = -16; oy <= 16; oy += 16) {
+			double d = Math.hypot(x - pts[i][0] - ox, y - pts[i][1] - oy);
+			if (d < best) {
+				second = best;
+				best = d;
+				bi = i;
+			} else if (d < second) second = d;
+		}
+		return new double[]{best, second, bi};
+	}
+
+	static double[][] points(Random r, int n) {
+		double[][] p = new double[n][2];
+		for (double[] q : p) {
+			q[0] = r.nextDouble() * 16;
+			q[1] = r.nextDouble() * 16;
+		}
+		return p;
+	}
+
+	/** Lumpy stone lit from the top-left, with recessed seams, carved cracks and a few glints. */
 	static BufferedImage stone(int[] pal, long seed, double crackChance) {
 		rng = new Random(seed);
-		double[][] n = fbm(16, 16, seed, new int[]{8, 4, 2}, new double[]{0.55, 0.3, 0.15});
+		double[][] n = fbm(16, 16, seed, new int[]{8, 4, 2}, new double[]{0.5, 0.3, 0.2});
+		double[][] pts = points(rng, 7);
+		double[][] hf = new double[16][16];
+		double[][] seam = new double[16][16];
+		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
+			double[] v = voronoi(pts, x + 0.5, y + 0.5);
+			seam[x][y] = v[1] - v[0];
+			hf[x][y] = n[x][y] * 0.55 + clamp01(seam[x][y] / 3.5) * 0.45;
+		}
+		int[] b = body(pal);
 		BufferedImage img = img(16, 16);
 		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
-			int i = (int) (n[x][y] * (pal.length - 1.2)) + 1;
-			img.setRGB(x, y, argb(pal[clamp(i, 0, pal.length - 2)]));
+			double t = 0.16 + hf[x][y] * 0.6 + emboss(hf, x, y) * 1.5 + (hash(x, y, seed) - 0.5) * 0.1;
+			if (seam[x][y] < 0.6) t -= 0.16;
+			img.setRGB(x, y, argb(rampQ(b, t)));
 		}
-		// cracks
-		for (int c = 0; c < 3; c++) {
+		// carved cracks: dark line with a lit lower edge
+		for (int c = 0; c < 2 + (crackChance > 0.05 ? 1 : 0); c++) {
 			int x = rng.nextInt(16), y = rng.nextInt(16);
 			int len = 3 + rng.nextInt(4);
 			for (int s = 0; s < len; s++) {
 				img.setRGB(x & 15, y & 15, argb(pal[0]));
-				if (rng.nextBoolean()) x += rng.nextBoolean() ? 1 : -1; else y += 1;
+				img.setRGB((x + 1) & 15, (y + 1) & 15, argb(lerp(img.getRGB((x + 1) & 15, (y + 1) & 15) & 0xFFFFFF, pal[pal.length - 2], 0.35)));
+				if (rng.nextBoolean()) x += rng.nextBoolean() ? 1 : -1;
+				else y += 1;
 			}
 		}
-		// highlights
-		for (int i = 0; i < 6; i++) img.setRGB(rng.nextInt(16), rng.nextInt(16), argb(pal[pal.length - 1]));
+		for (int i = 0; i < 5; i++) img.setRGB(rng.nextInt(16), rng.nextInt(16), argb(pal[pal.length - 1]));
 		return img;
 	}
 
+	/** Bricks: every brick has its own tone, a bevel (lit top/left, shaded bottom/right), chips and recessed mortar. */
 	static BufferedImage bricks(int[] pal, long seed) {
 		rng = new Random(seed);
-		double[][] n = fbm(16, 16, seed, new int[]{4, 2}, new double[]{0.7, 0.3});
+		double[][] n = fbm(16, 16, seed, new int[]{4, 2}, new double[]{0.6, 0.4});
+		double[] tone = new double[8];
+		for (int i = 0; i < tone.length; i++) tone[i] = rng.nextDouble() * 0.2 - 0.1;
+		int[] b = body(pal);
 		BufferedImage img = img(16, 16);
 		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
 			int row = y / 4, ly = y % 4;
-			int off = (row % 2) * 4;
-			int lx = (x + off) % 8;
-			int c;
-			if (ly == 3 || lx == 7) c = pal[0];
-			else if (ly == 0 || lx == 0) c = pal[pal.length - 2];
-			else if (ly == 2 || lx == 6) c = pal[2];
-			else c = pal[clamp(2 + (int) (n[x][y] * 2.2), 0, pal.length - 2)];
-			img.setRGB(x, y, argb(c));
+			int bx = (x + (row % 2) * 4) % 16, lx = bx % 8, brick = row * 2 + bx / 8;
+			double t;
+			if (ly == 3 || lx == 7) t = 0.04 + n[x][y] * 0.14;
+			else {
+				t = 0.5 + tone[brick] + (n[x][y] - 0.5) * 0.24;
+				if (ly == 0) t += 0.2;
+				else if (lx == 0) t += 0.12;
+				else if (ly == 2) t -= 0.12;
+				else if (lx == 6) t -= 0.08;
+				if (hash(x, y, seed) > 0.93) t -= 0.22; // chip
+				if (hash(x, y, seed + 1) > 0.97) t += 0.25;
+			}
+			img.setRGB(x, y, argb(rampQ(b, t)));
 		}
 		return img;
 	}
 
 	static BufferedImage chiseled(int[] pal, int[] gem, long seed) {
-		BufferedImage img = bricks(pal, seed);
+		BufferedImage img = stone(pal, seed, 0.02);
+		int[] b = body(pal);
 		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
-			boolean border = x == 0 || y == 0 || x == 15 || y == 15;
-			boolean inner = x == 2 || y == 2 || x == 13 || y == 13;
-			if (border) img.setRGB(x, y, argb(pal[0]));
-			else if (x == 1 || y == 1) img.setRGB(x, y, argb(pal[4]));
-			else if (x == 14 || y == 14) img.setRGB(x, y, argb(pal[1]));
-			else if (inner && x >= 2 && y >= 2 && x <= 13 && y <= 13) img.setRGB(x, y, argb(pal[1]));
-			else if (x > 2 && y > 2 && x < 13 && y < 13) img.setRGB(x, y, argb(pal[3]));
+			double base = (img.getRGB(x, y) & 0xFF) / 255.0 * 0.15;
+			double t = -1;
+			if (x == 0 || y == 0 || x == 15 || y == 15) t = 0.02;
+			else if (x == 1 || y == 1) t = 0.85;
+			else if (x == 14 || y == 14) t = 0.25;
+			else if (x == 2 || y == 2) t = 0.2;          // inner recess shadow
+			else if (x == 13 || y == 13) t = 0.7;
+			else t = 0.5 + base + (hash(x, y, seed) - 0.5) * 0.1;
+			img.setRGB(x, y, argb(rampQ(b, t)));
 		}
-		// central rune: diamond
+		// carved rune: faceted diamond with an engraved ring
 		for (int y = 3; y < 13; y++) for (int x = 3; x < 13; x++) {
-			double d = Math.abs(x - 7.5) + Math.abs(y - 7.5);
+			double dx = x - 7.5, dy = y - 7.5, d = Math.abs(dx) + Math.abs(dy);
 			if (d < 1.6) img.setRGB(x, y, argb(gem[5]));
-			else if (d < 2.6) img.setRGB(x, y, argb(gem[4]));
-			else if (d < 3.6) img.setRGB(x, y, argb(gem[2]));
-			else if (d < 4.4) img.setRGB(x, y, argb(pal[1]));
+			else if (d < 2.6) img.setRGB(x, y, argb(dx + dy < 0 ? gem[4] : gem[2]));
+			else if (d < 3.6) img.setRGB(x, y, argb(dx + dy < 0 ? gem[3] : gem[1]));
+			else if (d < 4.3) img.setRGB(x, y, argb(rampQ(b, 0.12)));
+			else if (d < 5.0) img.setRGB(x, y, argb(rampQ(b, dx + dy < 0 ? 0.3 : 0.8)));
+			else if (Math.abs(d - 5.6) < 0.5 && (x + y) % 2 == 0) img.setRGB(x, y, argb(gem[1]));
 		}
 		return img;
 	}
@@ -824,24 +880,35 @@ public class TextureGen {
 		rng = new Random(seed);
 		double[][] n = fbm(16, 16, seed, new int[]{4, 2, 1}, new double[]{0.5, 0.3, 0.2});
 		BufferedImage img = img(16, 16);
-		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++)
-			img.setRGB(x, y, argb(pal[clamp((int) (n[x][y] * pal.length), 0, pal.length - 1)]));
-		for (int i = 0; i < 10; i++) img.setRGB(rng.nextInt(16), rng.nextInt(16), argb(pal[0]));
-		for (int i = 0; i < 5; i++) img.setRGB(rng.nextInt(16), rng.nextInt(16), argb(pal[pal.length - 1]));
+		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
+			double t = 0.12 + n[x][y] * 0.7 + emboss(n, x, y) * 1.4;
+			img.setRGB(x, y, argb(rampQ(pal, t)));
+		}
+		// pebbles with a lit top
+		for (int i = 0; i < 5; i++) {
+			int x = rng.nextInt(16), y = rng.nextInt(16);
+			img.setRGB(x, y, argb(pal[pal.length - 1]));
+			img.setRGB((x + 1) & 15, y, argb(pal[pal.length - 2]));
+			img.setRGB(x, (y + 1) & 15, argb(pal[0]));
+			img.setRGB((x + 1) & 15, (y + 1) & 15, argb(pal[0]));
+		}
+		for (int i = 0; i < 8; i++) img.setRGB(rng.nextInt(16), rng.nextInt(16), argb(pal[0]));
 		return img;
 	}
 
 	static BufferedImage grassTop(int[] pal, long seed) {
 		rng = new Random(seed);
 		double[][] n = fbm(16, 16, seed, new int[]{8, 4, 2, 1}, new double[]{0.35, 0.3, 0.2, 0.15});
+		int[] b = body(pal);
 		BufferedImage img = img(16, 16);
 		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++)
-			img.setRGB(x, y, argb(pal[clamp((int) (n[x][y] * (pal.length - 1)), 0, pal.length - 2)]));
-		// little blades
-		for (int i = 0; i < 14; i++) {
+			img.setRGB(x, y, argb(rampQ(b, 0.18 + n[x][y] * 0.62 + emboss(n, x, y) * 1.3)));
+		// blades: lit tip, shaded root
+		for (int i = 0; i < 26; i++) {
 			int x = rng.nextInt(16), y = rng.nextInt(16);
 			img.setRGB(x, y, argb(pal[4]));
-			img.setRGB(x, (y + 1) & 15, argb(pal[1]));
+			img.setRGB(x, (y + 1) & 15, argb(pal[2]));
+			img.setRGB((x + 1) & 15, (y + 1) & 15, argb(pal[0]));
 		}
 		for (int i = 0; i < 4; i++) img.setRGB(rng.nextInt(16), rng.nextInt(16), argb(pal[pal.length - 1]));
 		return img;
@@ -853,89 +920,115 @@ public class TextureGen {
 		for (int i = 0; i < 7; i++) {
 			int x = rng.nextInt(16), y = rng.nextInt(16);
 			img.setRGB(x, y, argb(glow[2 + rng.nextInt(2)]));
-			if (rng.nextBoolean()) img.setRGB((x + 1) & 15, y, argb(glow[0]));
+			img.setRGB((x + 1) & 15, y, argb(glow[0]));
+			img.setRGB(x, (y + 1) & 15, argb(lerp(glow[0], pal[1], 0.5)));
 		}
 		return img;
 	}
 
+	/** Grass overhang with a shaded lip, a few dripping strands and a contact shadow on the soil below. */
 	static BufferedImage grassSide(BufferedImage base, int[] grass, long seed) {
 		rng = new Random(seed);
 		BufferedImage img = copy(base);
 		for (int x = 0; x < 16; x++) {
-			int depth = 3 + rng.nextInt(3) + (x % 5 == 0 ? 1 : 0);
+			int depth = 3 + rng.nextInt(2) + (x % 5 == 0 ? 1 : 0);
+			if (rng.nextInt(5) == 0) depth += 2; // drip
 			for (int y = 0; y < depth; y++) {
-				int c = y == depth - 1 ? grass[0] : grass[clamp(grass.length - 2 - y + rng.nextInt(2), 1, grass.length - 2)];
-				img.setRGB(x, y, argb(c));
+				double t = 0.95 - y / (double) depth * 0.75 + (hash(x, y, seed) - 0.5) * 0.15;
+				img.setRGB(x, y, argb(rampQ(grass, t)));
 			}
-			if (rng.nextInt(4) == 0) img.setRGB(x, depth, argb(grass[0]));
+			img.setRGB(x, depth, argb(shadeColor(img.getRGB(x, depth) & 0xFFFFFF, 0.6)));
+			if (depth + 1 < 16) img.setRGB(x, depth + 1, argb(shadeColor(img.getRGB(x, depth + 1) & 0xFFFFFF, 0.82)));
 		}
 		return img;
 	}
 
+	/** Ore: faceted crystal clusters (lit facet, shaded facet, glint) casting a small shadow on the stone. */
 	static BufferedImage ore(BufferedImage base, int[] gem, long seed) {
 		rng = new Random(seed);
 		BufferedImage img = copy(base);
 		int[][] spots = {{3, 3}, {11, 2}, {7, 8}, {2, 12}, {12, 11}};
+		boolean[][] mask = new boolean[16][16];
 		for (int[] s : spots) {
 			int cx = s[0] + rng.nextInt(2), cy = s[1] + rng.nextInt(2);
 			int size = 1 + rng.nextInt(2);
-			for (int dy = -size; dy <= size; dy++) for (int dx = -size; dx <= size; dx++) {
-				if (Math.abs(dx) + Math.abs(dy) > size + 0.5) continue;
+			for (int dy = -size - 1; dy <= size + 1; dy++) for (int dx = -size; dx <= size; dx++) {
+				double shape = Math.abs(dx) + Math.abs(dy) * 0.55; // upright hexagonal crystal
+				if (shape > size + 0.6) continue;
 				int x = cx + dx, y = cy + dy;
 				if (x < 0 || y < 0 || x > 15 || y > 15) continue;
-				int c = (dx == 0 && dy == 0) ? gem[5] : (dx + dy < 0 ? gem[4] : gem[2]);
+				int c;
+				if (dx == 0 && dy == -1) c = gem[5];
+				else if (dx <= 0 && dy < 0) c = gem[4];
+				else if (dx < 0) c = gem[3];
+				else if (dy < 0) c = gem[3];
+				else if (dx > 0 && dy > 0) c = gem[1];
+				else c = gem[2];
 				img.setRGB(x, y, argb(c));
+				mask[x][y] = true;
 			}
-			// dark rim under crystal
-			int bx = cx + size, by = cy + 1;
-			if (bx < 16 && by < 16) img.setRGB(bx, by, argb(gem[0]));
 		}
+		// contact shadow to the lower-right of every crystal
+		BufferedImage src = copy(img);
+		for (int y = 0; y < 15; y++) for (int x = 0; x < 15; x++)
+			if (mask[x][y] && !mask[x + 1][y + 1]) img.setRGB(x + 1, y + 1, argb(shadeColor(src.getRGB(x + 1, y + 1) & 0xFFFFFF, 0.55)));
 		return img;
 	}
 
+	/** Crystal block: Voronoi facets, each with its own light angle, bright ridges and a few sparkles. */
 	static BufferedImage crystal(int[] pal, long seed) {
 		rng = new Random(seed);
-		int pts = 7;
-		double[][] p = new double[pts][2];
-		for (int i = 0; i < pts; i++) { p[i][0] = rng.nextDouble() * 16; p[i][1] = rng.nextDouble() * 16; }
+		double[][] p = points(rng, 7);
+		double[] facing = new double[7];
+		for (int i = 0; i < 7; i++) facing[i] = rng.nextDouble() * Math.PI * 2;
 		BufferedImage img = img(16, 16);
 		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
-			double best = 1e9, second = 1e9; int bi = 0;
-			for (int i = 0; i < pts; i++) for (int ox = -16; ox <= 16; ox += 16) for (int oy = -16; oy <= 16; oy += 16) {
-				double d = Math.hypot(x + 0.5 - p[i][0] - ox, y + 0.5 - p[i][1] - oy);
-				if (d < best) { second = best; best = d; bi = i; } else if (d < second) second = d;
-			}
-			int c;
-			if (second - best < 0.9) c = pal[pal.length - 2];
+			double[] v = voronoi(p, x + 0.5, y + 0.5);
+			int bi = (int) v[2];
+			double t;
+			if (v[1] - v[0] < 0.8) t = 0.92;                                   // ridge between facets
 			else {
-				double facet = ((bi * 37) % pts) / (double) pts;
-				double grad = (x - y) / 32.0;
-				c = pal[clamp((int) ((facet * 0.7 + 0.3 + grad) * (pal.length - 2)), 0, pal.length - 3)];
+				double lam = Math.cos(facing[bi] - Math.toRadians(225));         // facet facing the top-left light
+				t = 0.54 + lam * 0.18 + (x - y) / 64.0 - v[0] * 0.015;
+				if (v[1] - v[0] < 1.6) t -= 0.12;                                // shadowed foot of the ridge
 			}
-			img.setRGB(x, y, argb(c));
+			img.setRGB(x, y, argb(rampQ(body(pal), t + (hash(x, y, seed) - 0.5) * 0.06)));
 		}
-		for (int i = 0; i < 5; i++) img.setRGB(rng.nextInt(16), rng.nextInt(16), argb(pal[pal.length - 1]));
+		for (int i = 0; i < 5; i++) {
+			int x = rng.nextInt(16), y = rng.nextInt(16);
+			img.setRGB(x, y, argb(pal[pal.length - 1]));
+		}
 		return img;
 	}
 
+	/** Bark: vertical ridges with deep crevices, lit ridge flanks and glowing sap running in a few cracks. */
 	static BufferedImage logSide(int[] pal, long seed) {
 		rng = new Random(seed);
+		double[][] n = fbm(16, 16, seed, new int[]{8, 4, 2}, new double[]{0.5, 0.3, 0.2});
+		double[] phase = new double[16];
+		for (int x = 0; x < 16; x++) phase[x] = rng.nextDouble() * 0.6;
 		BufferedImage img = img(16, 16);
-		double[] col = new double[16];
-		for (int x = 0; x < 16; x++) col[x] = rng.nextDouble();
 		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
-			double v = col[x] * 0.6 + 0.4 * Math.sin((y + x * 3) * 0.7) * 0.5 + 0.2;
-			img.setRGB(x, y, argb(pal[clamp((int) (v * pal.length), 1, pal.length - 1)]));
+			double r = Math.sin((x + phase[x] + Math.sin(y * 0.4 + x) * 0.5) * Math.PI * 2 / 5.33);
+			double t = 0.45 + r * 0.24 + (n[x][y] - 0.5) * 0.3;
+			double rl = Math.sin((x - 1 + phase[(x + 15) % 16]) * Math.PI * 2 / 5.33);
+			if (r < -0.7) t = 0.04;                    // crevice
+			else if (rl < -0.7) t += 0.18;             // lit flank right of a crevice
+			img.setRGB(x, y, argb(rampQ(pal, t)));
 		}
-		for (int f = 0; f < 4; f++) {
-			int x = rng.nextInt(16), y = rng.nextInt(16), len = 4 + rng.nextInt(6);
-			for (int i = 0; i < len; i++) img.setRGB(x, (y + i) & 15, argb(pal[0]));
+		// horizontal breaks
+		for (int i = 0; i < 3; i++) {
+			int x = rng.nextInt(16), y = rng.nextInt(16);
+			img.setRGB(x, y, argb(pal[0]));
+			img.setRGB((x + 1) & 15, y, argb(pal[0]));
+			img.setRGB(x, (y + 1) & 15, argb(pal[pal.length - 1]));
 		}
 		// glowing sap veins
 		for (int i = 0; i < 3; i++) {
 			int x = rng.nextInt(16), y = rng.nextInt(16);
-			img.setRGB(x, y, argb(0x7ff5da));
-			img.setRGB(x, (y + 1) & 15, argb(0x2bbfa9));
+			img.setRGB(x, y, argb(0xc9fff0));
+			img.setRGB(x, (y + 1) & 15, argb(0x7ff5da));
+			img.setRGB(x, (y + 2) & 15, argb(0x2bbfa9));
 		}
 		return img;
 	}
@@ -943,49 +1036,86 @@ public class TextureGen {
 	static BufferedImage logTop(int[] bark, int[] wood, long seed) {
 		BufferedImage img = img(16, 16);
 		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
-			boolean edge = x == 0 || y == 0 || x == 15 || y == 15;
-			if (edge) { img.setRGB(x, y, argb(bark[(x + y) % 2 == 0 ? 1 : 2])); continue; }
-			double d = Math.max(Math.abs(x - 7.5), Math.abs(y - 7.5)) + Math.hypot(x - 7.5, y - 7.5) * 0.3;
-			int ring = (int) d;
-			int c = ring % 2 == 0 ? wood[3] : wood[1];
-			if (ring == 0) c = 0x7ff5da;
-			img.setRGB(x, y, argb(c));
+			if (x == 0 || y == 0 || x == 15 || y == 15) {
+				img.setRGB(x, y, argb(rampQ(bark, 0.3 + hash(x, y, seed) * 0.4)));
+				continue;
+			}
+			if (x == 1 || y == 1 || x == 14 || y == 14) {
+				img.setRGB(x, y, argb(rampQ(bark, x == 14 || y == 14 ? 0.15 : 0.75)));
+				continue;
+			}
+			double dx = x - 7.5, dy = y - 7.5;
+			double d = Math.max(Math.abs(dx), Math.abs(dy)) * 0.65 + Math.hypot(dx, dy) * 0.45 + Math.sin(Math.atan2(dy, dx) * 3) * 0.25;
+			double ring = d % 1.6 / 1.6;
+			double t = 0.35 + ring * 0.45 + (dx + dy < 0 ? 0.08 : -0.04);
+			if (ring < 0.18) t = 0.12;
+			img.setRGB(x, y, argb(rampQ(wood, t)));
+			if (Math.hypot(dx, dy) < 1.3) img.setRGB(x, y, argb(Math.hypot(dx, dy) < 0.8 ? 0xc9fff0 : 0x7ff5da));
 		}
+		// radial crack
+		for (int i = 3; i < 7; i++) img.setRGB(8 + i, 8 - i / 3, argb(wood[0]));
 		return img;
 	}
 
+	/** Planks: four boards with their own tone, wavy grain, bevelled edges, butt joints and nails. */
 	static BufferedImage planks(int[] pal, long seed) {
 		rng = new Random(seed);
+		double[][] n = fbm(16, 16, seed, new int[]{8, 2}, new double[]{0.6, 0.4});
+		double[] tone = new double[4];
+		int[] seams = new int[4];
+		for (int i = 0; i < 4; i++) {
+			tone[i] = rng.nextDouble() * 0.16 - 0.08;
+			seams[i] = (i % 2 == 0 ? 10 : 3) + rng.nextInt(3);
+		}
 		BufferedImage img = img(16, 16);
 		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
 			int board = y / 4, ly = y % 4;
-			int seam = (board % 2 == 0) ? 11 : 4;
-			int c;
-			if (ly == 3) c = pal[0];
-			else if (x == seam) c = pal[1];
+			double t;
+			if (ly == 3) t = 0.04;
+			else if (x == seams[board]) t = 0.12;
 			else {
-				double g = Math.sin(x * 0.9 + board * 2.1) * 0.5 + 0.5;
-				c = pal[clamp(1 + (int) (g * 2.5) + (ly == 0 ? 1 : 0), 1, pal.length - 1)];
+				double grain = Math.sin(x * 0.55 + board * 2.3 + n[x][y] * 5 + ly * 0.9);
+				t = 0.5 + tone[board] + grain * 0.12;
+				if (ly == 0) t += 0.18;
+				else if (ly == 2) t -= 0.1;
+				if (x == seams[board] + 1) t += 0.12;
+				if (Math.abs(grain) > 0.96) t -= 0.14; // grain line
 			}
-			img.setRGB(x, y, argb(c));
+			img.setRGB(x, y, argb(rampQ(pal, t)));
+		}
+		for (int board = 0; board < 4; board++) { // nails next to the joints
+			int ny = board * 4 + 1;
+			img.setRGB((seams[board] + 2) & 15, ny, argb(0xd8d0e0));
+			img.setRGB((seams[board] + 14) & 15, ny, argb(0xd8d0e0));
 		}
 		return img;
 	}
 
+	/** Leaves: overlapping shaded leaf blobs with holes, lit on the upper-left, plus a few glowing buds. */
 	static BufferedImage leaves(int[] pal, long seed) {
 		rng = new Random(seed);
-		double[][] n = fbm(16, 16, seed, new int[]{4, 2, 1}, new double[]{0.4, 0.35, 0.25});
 		BufferedImage img = img(16, 16);
-		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
-			double v = n[x][y];
-			if (v < 0.22) continue;
-			img.setRGB(x, y, argb(pal[clamp((int) (v * (pal.length - 1)), 0, pal.length - 3)]));
+		int[] b = java.util.Arrays.copyOf(pal, pal.length - 2);
+		for (int i = 0; i < 46; i++) {
+			double cx = rng.nextDouble() * 16, cy = rng.nextDouble() * 16;
+			double ang = rng.nextInt(4) * Math.PI / 4, rx = 2.1, ry = 1.2;
+			double tone = rng.nextDouble() * 0.25;
+			for (int dy = -3; dy <= 3; dy++) for (int dx = -3; dx <= 3; dx++) {
+				double u = (dx * Math.cos(ang) + dy * Math.sin(ang)) / rx, v = (-dx * Math.sin(ang) + dy * Math.cos(ang)) / ry;
+				double r = u * u + v * v;
+				if (r > 1) continue;
+				int x = Math.floorMod((int) Math.round(cx + dx), 16), y = Math.floorMod((int) Math.round(cy + dy), 16);
+				double t = 0.22 + tone + (-dx - dy) * 0.08 + (1 - r) * 0.38;
+				if (Math.abs(v) < 0.25 && Math.abs(u) < 0.8) t += 0.15; // leaf vein
+				img.setRGB(x, y, argb(rampQ(b, t)));
+			}
 		}
-		for (int i = 0; i < 6; i++) {
+		// thin out to get holes
+		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) if (hash(x, y, seed) > 0.94) img.setRGB(x, y, 0);
+		for (int i = 0; i < 5; i++) {
 			int x = rng.nextInt(15), y = rng.nextInt(15);
 			img.setRGB(x, y, argb(pal[pal.length - 1]));
 			img.setRGB(x + 1, y, argb(pal[pal.length - 2]));
-			img.setRGB(x, y + 1, argb(pal[pal.length - 2]));
 		}
 		return img;
 	}
@@ -993,18 +1123,21 @@ public class TextureGen {
 	static BufferedImage flower(int[] stemPal, int[] petal, long seed) {
 		BufferedImage img = img(16, 16);
 		for (int y = 7; y < 16; y++) img.setRGB(7 + (y > 12 ? 1 : 0), y, argb(stemPal[y % 2 == 0 ? 1 : 2]));
-		img.setRGB(6, 11, argb(stemPal[3])); img.setRGB(5, 10, argb(stemPal[3]));
-		img.setRGB(9, 13, argb(stemPal[3])); img.setRGB(10, 12, argb(stemPal[3]));
+		// two leaves
+		img.setRGB(6, 11, argb(stemPal[3])); img.setRGB(5, 10, argb(stemPal[3])); img.setRGB(5, 11, argb(stemPal[2])); img.setRGB(4, 10, argb(stemPal[1]));
+		img.setRGB(9, 13, argb(stemPal[2])); img.setRGB(10, 12, argb(stemPal[3])); img.setRGB(10, 13, argb(stemPal[1])); img.setRGB(11, 12, argb(stemPal[2]));
 		int cx = 7, cy = 4;
 		for (int dy = -3; dy <= 3; dy++) for (int dx = -3; dx <= 3; dx++) {
-			double d = Math.hypot(dx, dy);
-			double ang = Math.atan2(dy, dx);
-			double petalR = 2.2 + Math.cos(ang * 5) * 1.0;
-			if (d <= petalR) {
-				int c = d < 1 ? petal[5] : (d < 1.8 ? petal[4] : petal[2 + ((dx + dy) & 1)]);
-				img.setRGB(cx + dx, cy + dy, argb(c));
-			}
+			double d = Math.hypot(dx, dy), ang = Math.atan2(dy, dx);
+			double petalR = 2.3 + Math.cos(ang * 5) * 1.0;
+			if (d > petalR) continue;
+			double t = 0.55 + (-dx - dy) * 0.06 - d / petalR * 0.25;
+			if (Math.abs(Math.sin(ang * 5 / 2)) < 0.18 && d > 1) t -= 0.25; // gap between petals
+			int c = d < 1 ? petal[5] : rampQ(java.util.Arrays.copyOfRange(petal, 1, 5), t);
+			img.setRGB(cx + dx, cy + dy, argb(c));
 		}
+		img.setRGB(cx, cy, argb(0xffffff));
+		img.setRGB(cx + 1, cy + 1, argb(petal[3]));
 		return img;
 	}
 
@@ -1013,11 +1146,16 @@ public class TextureGen {
 		BufferedImage img = dirt(pal, seed);
 		int[][] spots = {{3, 3, 2}, {11, 4, 2}, {6, 10, 3}, {13, 12, 1}, {1, 13, 1}};
 		for (int[] s : spots) {
-			for (int dy = -s[2]; dy <= s[2]; dy++) for (int dx = -s[2]; dx <= s[2]; dx++) {
+			for (int dy = -s[2] - 1; dy <= s[2] + 1; dy++) for (int dx = -s[2] - 1; dx <= s[2] + 1; dx++) {
 				double d = Math.hypot(dx, dy);
-				if (d > s[2] + 0.3) continue;
-				int c = d < 0.8 ? glow[3] : (d < s[2] - 0.4 ? glow[2] : glow[0]);
-				img.setRGB((s[0] + dx) & 15, (s[1] + dy) & 15, argb(c));
+				int x = (s[0] + dx) & 15, y = (s[1] + dy) & 15;
+				if (d > s[2] + 1.2) continue;
+				if (d > s[2] + 0.3) { // soft halo on the cap
+					img.setRGB(x, y, argb(lerp(img.getRGB(x, y) & 0xFFFFFF, glow[0], 0.35)));
+					continue;
+				}
+				int c = d < 0.8 ? glow[3] : (dx + dy < 0 ? glow[2] : d < s[2] - 0.4 ? glow[1] : glow[0]);
+				img.setRGB(x, y, argb(c));
 			}
 		}
 		return img;
@@ -1025,10 +1163,13 @@ public class TextureGen {
 
 	static BufferedImage stem(int[] pal, long seed) {
 		rng = new Random(seed);
+		double[][] n = fbm(16, 16, seed, new int[]{8, 2}, new double[]{0.6, 0.4});
 		BufferedImage img = img(16, 16);
 		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
-			double v = 0.5 + 0.35 * Math.sin(x * 1.3 + rng.nextDouble() * 0.6);
-			img.setRGB(x, y, argb(pal[clamp((int) (v * pal.length), 0, pal.length - 1)]));
+			double fib = Math.sin(x * 1.9 + n[x][y] * 2.5);
+			double t = 0.5 + fib * 0.2 + (n[x][(y * 3) & 15] - 0.5) * 0.2;
+			if (fib < -0.9) t = 0.1;
+			img.setRGB(x, y, argb(rampQ(pal, t)));
 		}
 		return img;
 	}
@@ -1036,43 +1177,72 @@ public class TextureGen {
 	static BufferedImage[] portal(int[] pal, long seed, int frames) {
 		BufferedImage[] out = new BufferedImage[frames];
 		double[][] n = fbm(16, 16, seed, new int[]{8, 4, 2}, new double[]{0.5, 0.3, 0.2});
+		Random r = new Random(seed);
+		double[][] stars = new double[6][3];
+		for (double[] s : stars) {
+			s[0] = r.nextDouble() * 6.3;
+			s[1] = 1 + r.nextDouble() * 6;
+			s[2] = r.nextDouble();
+		}
 		for (int f = 0; f < frames; f++) {
 			BufferedImage img = img(16, 16);
 			double t = f / (double) frames * Math.PI * 2;
 			for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
 				double dx = x - 7.5, dy = y - 7.5;
-				double r = Math.hypot(dx, dy);
-				double a = Math.atan2(dy, dx);
-				double v = Math.sin(a * 3 + r * 0.9 - t) * 0.5 + 0.5;
+				double rr = Math.hypot(dx, dy), a = Math.atan2(dy, dx);
+				double v = Math.sin(a * 3 + rr * 0.9 - t) * 0.5 + 0.5;
 				v = v * 0.65 + n[x][y] * 0.35 + Math.sin(t + n[x][y] * 6) * 0.08;
-				int c = pal[clamp((int) (v * pal.length), 0, pal.length - 1)];
-				int alpha = 170 + (int) (v * 70);
+				v = Math.pow(clamp01(v), 1.3);
+				int c = ramp(pal, v);
+				int alpha = 165 + (int) (v * 80);
 				img.setRGB(x, y, (alpha << 24) | (c & 0xFFFFFF));
+			}
+			// sparkles spiralling inwards
+			for (double[] s : stars) {
+				double ph = (s[2] + f / (double) frames) % 1.0;
+				double rad = s[1] * (1 - ph), ang = s[0] + ph * 4;
+				int x = (int) Math.round(7.5 + Math.cos(ang) * rad), y = (int) Math.round(7.5 + Math.sin(ang) * rad);
+				if (x >= 0 && y >= 0 && x < 16 && y < 16) img.setRGB(x, y, 0xF0FFFFFF);
 			}
 			out[f] = img;
 		}
 		return out;
 	}
 
+	/** Boss altar: bevelled metal frame with rivets around a brick core, gem socket on top, glowing seam on the sides. */
 	static BufferedImage altar(int[] stone, int[] metal, int[] gem, long seed, boolean top) {
 		BufferedImage img = bricks(stone, seed);
 		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
-			boolean frame = x <= 1 || y <= 1 || x >= 14 || y >= 14;
-			if (frame) img.setRGB(x, y, argb(metal[(x == 0 || y == 0) ? 4 : (x == 15 || y == 15) ? 1 : 3]));
+			double t = -1;
+			if (x == 0 || y == 0 || x == 15 || y == 15) t = 0.1;
+			else if (x == 1 || y == 1) t = 0.9;
+			else if (x == 14 || y == 14) t = 0.3;
+			else if (x == 2 || y == 2) t = 0.15; // shadow cast inwards
+			if (t >= 0) img.setRGB(x, y, argb(rampQ(metal, t + (hash(x, y, seed) - 0.5) * 0.08)));
+			else if (x == 13 || y == 13) img.setRGB(x, y, argb(shadeColor(img.getRGB(x, y) & 0xFFFFFF, 1.1)));
 		}
+		for (int[] c : new int[][]{{1, 1}, {14, 1}, {1, 14}, {14, 14}}) img.setRGB(c[0], c[1], argb(gem[4]));
 		if (top) {
-			for (int y = 2; y < 14; y++) for (int x = 2; x < 14; x++) {
-				double d = Math.hypot(x - 7.5, y - 7.5);
-				if (d < 1.6) img.setRGB(x, y, argb(gem[5]));
-				else if (d < 2.8) img.setRGB(x, y, argb(gem[3]));
-				else if (d > 4.2 && d < 5.2) img.setRGB(x, y, argb(metal[2 + ((x + y) & 1)]));
+			for (int y = 3; y < 13; y++) for (int x = 3; x < 13; x++) {
+				double dx = x - 7.5, dy = y - 7.5, d = Math.hypot(dx, dy);
+				if (d < 1.2) img.setRGB(x, y, argb(gem[5]));
+				else if (d < 2.8) img.setRGB(x, y, argb(dx + dy < 0 ? gem[4] : dx > 0 && dy > 0 ? gem[1] : gem[3]));
+				else if (d < 3.5) img.setRGB(x, y, argb(rampQ(metal, dx + dy < 0 ? 0.2 : 0.85)));
+				else if (d > 4.2 && d < 5.2) img.setRGB(x, y, argb(rampQ(metal, (dx + dy < 0 ? 0.75 : 0.4) + ((x + y) & 1) * 0.1)));
 			}
 		} else {
 			for (int y = 4; y < 12; y++) {
 				img.setRGB(7, y, argb(gem[y == 7 || y == 8 ? 5 : 3]));
 				img.setRGB(8, y, argb(gem[y == 7 || y == 8 ? 4 : 2]));
+				img.setRGB(6, y, argb(rampQ(metal, 0.25)));
+				img.setRGB(9, y, argb(rampQ(metal, 0.75)));
 			}
-			for (int x = 4; x < 12; x++) { img.setRGB(x, 4, argb(metal[3])); img.setRGB(x, 11, argb(metal[2])); }
+			for (int x = 4; x < 12; x++) {
+				img.setRGB(x, 3, argb(rampQ(metal, 0.9)));
+				img.setRGB(x, 4, argb(rampQ(metal, 0.55)));
+				img.setRGB(x, 11, argb(rampQ(metal, 0.5)));
+				img.setRGB(x, 12, argb(rampQ(metal, 0.2)));
+			}
 		}
 		return img;
 	}
@@ -1113,7 +1283,7 @@ public class TextureGen {
 		save(bow(AURORA_WOOD, GLOWCRYSTAL, 1), "item/crystal_bow_pulling_0");
 		save(bow(AURORA_WOOD, GLOWCRYSTAL, 2), "item/crystal_bow_pulling_1");
 		save(bow(AURORA_WOOD, GLOWCRYSTAL, 3), "item/crystal_bow_pulling_2");
-		save(sword(EMBER, GOLD, SHADOW_STEEL, true), "item/ember_greatsword");
+		save(sword(EMBER, GOLD, SHADOW_STEEL, SW_EMBER), "item/ember_greatsword");
 		save(staff(AURORA_WOOD, GLOWCRYSTAL), "item/aurora_staff");
 
 		// armor
@@ -1137,29 +1307,62 @@ public class TextureGen {
 	}
 
 	/** Shade every filled cell automatically: lit from top-left, outlined. */
+	static int partId(char ch) {
+		if (ch == '.') return -1;
+		return switch (Character.toLowerCase(ch)) {
+			case 'h' -> 1;
+			case 'g' -> 2;
+			default -> 0;
+		};
+	}
+
+	/**
+	 * Shade a sprite mask: every part (x = main material, h = handle/trim, g = gem) gets its own rounded bevel lit from
+	 * the top-left, material noise and a soft sprite-wide gradient; digits 0-5 force a shade of the main material.
+	 * Upper-case letters are one step brighter. The outline takes the colour of the neighbouring part.
+	 */
 	static BufferedImage shadeMask(char[][] m, int[] mat, int[] mat2, int[] mat3) {
 		BufferedImage img = img(16, 16);
+		int[][] id = new int[16][16];
+		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) id[y][x] = partId(m[y][x]);
+		double[][] hgt = new double[16][16];
+		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
+			if (id[y][x] < 0) continue;
+			double best = Math.min(Math.min(x + 1, y + 1), Math.min(16 - x, 16 - y));
+			for (int yy = Math.max(0, y - 3); yy <= Math.min(15, y + 3); yy++)
+				for (int xx = Math.max(0, x - 3); xx <= Math.min(15, x + 3); xx++)
+					if (id[yy][xx] != id[y][x]) best = Math.min(best, Math.hypot(xx - x, yy - y));
+			hgt[y][x] = Math.min(best, 3);
+		}
+		long seed = mat[2] ^ (mat2[1] * 31L);
 		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
 			char ch = m[y][x];
-			if (ch == '.') continue;
-			int[] pal = switch (Character.toLowerCase(ch)) {
-				case 'h' -> mat2;
-				case 'g' -> mat3;
-				default -> mat;
-			};
-			int shade;
-			if (Character.isDigit(ch)) shade = ch - '0';
+			int part = id[y][x];
+			if (part < 0) continue;
+			int[] pal = part == 1 ? mat2 : part == 2 ? mat3 : mat;
+			double t;
+			if (Character.isDigit(ch)) t = (ch - '0') / 5.0;
 			else {
-				boolean up = filled(m, x, y - 1), left = filled(m, x - 1, y), down = filled(m, x, y + 1), right = filled(m, x + 1, y);
-				if (!up || !left) shade = 4;
-				else if (!down || !right) shade = 1;
-				else shade = 2 + ((x * 7 + y * 3) % 5 == 0 ? 1 : 0);
-				if (Character.isUpperCase(ch)) shade = Math.min(shade + 1, 5);
+				double hl = hgtAt(hgt, id, x - 1, y, part), hr = hgtAt(hgt, id, x + 1, y, part);
+				double hu = hgtAt(hgt, id, x, y - 1, part), hd = hgtAt(hgt, id, x, y + 1, part);
+				double lam = Math.max(-1, Math.min(1, ((hr - hl) + (hd - hu)) * 0.5));
+				double depth = Math.min(hgt[y][x], 2.5) / 2.5;
+				t = 0.44 + lam * 0.36 + depth * 0.1 + (0.5 - (x + y) / 30.0) * 0.16 + (hash(x, y, seed) - 0.5) * 0.12;
+				if (part == 2) t += 0.12; // gems catch more light
+				if (Character.isUpperCase(ch)) t += 0.14;
 			}
-			img.setRGB(x, y, argb(pal[clamp(shade, 0, pal.length - 1)]));
+			int c = rampQ(pal, t);
+			// specular glint on the brightest rim pixels
+			if (!Character.isDigit(ch) && t > 0.9 && hash(x, y, seed + 1) > 0.55) c = lerp(c, 0xffffff, 0.45);
+			img.setRGB(x, y, argb(c));
 		}
-		outline(img, darken(mat[0], 0.55));
+		outlineSel(img, 0.38);
 		return img;
+	}
+
+	static double hgtAt(double[][] hgt, int[][] id, int x, int y, int part) {
+		if (x < 0 || y < 0 || x > 15 || y > 15 || id[y][x] != part) return 0;
+		return hgt[y][x];
 	}
 
 	static boolean filled(char[][] m, int x, int y) {
@@ -1184,23 +1387,68 @@ public class TextureGen {
 	}
 
 	static BufferedImage sword(int[] blade, int[] guard, int[] handle, boolean legendary) {
-		char[][] g = grid();
-		int tipX = legendary ? 15 : 14, tipY = legendary ? 0 : 1;
-		int len = legendary ? 10 : 9;
-		for (int t = 0; t < len; t++) {
-			int cx = tipX - t, cy = tipY + t;
-			set(g, cx, cy, '5');
-			if (t > 0) { set(g, cx - 1, cy, '3'); set(g, cx + 1, cy, '1'); }
-			if (legendary && t > 1 && t < len - 1) { set(g, cx - 2, cy, '2'); set(g, cx, cy + 1, '4'); }
+		return sword(blade, guard, handle, legendary ? SW_RADIANT : SW_PLAIN);
+	}
+
+	static final int SW_PLAIN = 0, SW_RADIANT = 1, SW_EMBER = 2, SW_REAVER = 3, SW_FROST = 4, SW_SONIC = 5;
+
+	/**
+	 * Diagonal sword sprite painted in blade coordinates: a = across the blade (negative = lit upper-left edge),
+	 * l = along it (tip at l = 13, guard at l = -5/-4, grip below, pommel at the lower-left corner).
+	 */
+	static BufferedImage sword(int[] blade, int[] guard, int[] handle, int style) {
+		BufferedImage img = img(16, 16);
+		boolean wide = style != SW_PLAIN;
+		int[] glow = style == SW_RADIANT ? GLOWCRYSTAL : blade;
+		int gw = wide ? 4 : 3;
+		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) {
+			int a = x + y - 15, l = x - y;
+			int c = -1;
+			int maxA = l >= 12 ? 0 : l >= 10 ? 1 : (wide ? 2 : 1);
+			double n = (hash(x, y, blade[1]) - 0.5) * 0.08;
+			if (l >= -3 && l <= 13 && Math.abs(a) <= maxA) {
+				double t;
+				if (l == 13) t = 1.0;
+				else if (maxA > 0 && a == -maxA) t = 0.96;        // honed edge catching the light
+				else if (maxA > 0 && a == maxA) t = 0.3;          // edge in shadow
+				else if (a == 0) t = wide ? 0.6 : 0.74;           // fuller groove / centre ridge
+				else t = a < 0 ? 0.8 : 0.56;
+				t += (l - 5) * 0.012 + n;
+				c = rampQ(blade, t);
+				if (wide && a == 0 && l > -3 && l < 10 && (l + 1) % 4 == 0) c = glow[glow.length - 2]; // runes in the fuller
+				if (style == SW_SONIC && a == 0 && l > -3 && l < 11 && (l + 3) % 4 == 0) c = 0x05181c;     // hollow resonance slots
+			}
+			// style extras just outside the blade
+			if (c == -1 && l >= -2 && l <= 10) {
+				// (a + l is always odd, so a = 3 only exists on even l)
+				if (style == SW_EMBER && a == maxA + 1 && Math.floorMod(l, 4) == 0) c = EMBER[4];      // flame tongues
+				if (style == SW_REAVER && a == -(maxA + 1) && Math.floorMod(l, 4) == 2) c = blade[3];  // serrated teeth
+				if (style == SW_FROST && a == maxA + 1 && Math.floorMod(l, 6) == 0) c = 0xe8f6ff;      // frost crystals
+			}
+			// crossguard
+			if ((l == -5 || l == -4) && Math.abs(a) <= gw) {
+				double t = (l == -4 ? 0.78 : 0.48) - a * 0.03 + n;
+				if (Math.abs(a) >= gw - 1) t += 0.1;
+				c = rampQ(guard, t);
+				if (l == -5 && a == 0) c = glow[glow.length - 2];
+				if (l == -4 && a == -1) c = glow[glow.length - 1];
+				if (l == -4 && a == 1) c = glow[2];
+				if (style == SW_FROST && Math.abs(a) == gw && l == -4) c = 0xe8f6ff;
+			}
+			if (style != SW_PLAIN && l == -3 && Math.abs(a) == gw) c = rampQ(guard, 0.85); // upturned quillons
+			// wrapped grip
+			if (l >= -11 && l <= -6 && (a == -1 || a == 0)) {
+				double t = a < 0 ? 0.72 : 0.42;
+				if (Math.floorMod(l, 4) >= 2) t -= 0.16; // leather wrap bands
+				c = rampQ(handle, t + n);
+			}
+			// pommel
+			if (l == -12 && Math.abs(a) <= 1) c = rampQ(guard, a < 0 ? 0.92 : 0.4);
+			if (l == -13 && a == 0) c = glow[glow.length - 2];
+			if (c != -1) img.setRGB(x, y, argb(c));
 		}
-		int gx = tipX - len, gy = tipY + len;
-		for (int i = -2; i <= 2; i++) set(g, gx + i, gy + i, 'g');
-		if (legendary) { set(g, gx - 3, gy - 3, 'G'); set(g, gx + 3, gy + 3, 'G'); set(g, gx, gy, 'G'); }
-		set(g, gx - 1, gy + 1, 'h'); set(g, gx - 2, gy + 2, 'H'); set(g, gx - 3, gy + 3, 'h');
-		set(g, gx - 4, gy + 4, 'g');
-		int[] gp = legendary ? guard : guard;
-		BufferedImage img = shadeMask(g, blade, handle, gp);
-		if (legendary) glowEdge(img, blade[4]);
+		outlineSel(img, 0.36);
+		if (style != SW_PLAIN) glowEdge(img, blade[4]);
 		return img;
 	}
 
@@ -1317,25 +1565,22 @@ public class TextureGen {
 			double thick = 1.6 - mid * 0.7;
 			if (Math.abs(r - rad) <= thick) set(g, x, y, mid < 0.18 ? 'g' : (r < rad ? 'h' : 'H'));
 		}
-		// string from tip to tip, pulled toward the lower-right
-		int ax = 2, ay = 13, bx = 13, by = 2;
-		for (int i = 0; i <= 30; i++) {
-			double t = i / 30.0;
-			double off = Math.sin(t * Math.PI) * pull * 1.3;
-			int px = (int) Math.round(ax + (bx - ax) * t + off), py = (int) Math.round(ay + (by - ay) * t + off);
-			if (filled(g, px, py)) continue;
-			set(g, px, py, '5');
-		}
 		if (pull > 0) {
 			// arrow along the diagonal, nock at the string
 			int nock = 8 + (int) Math.round(pull * 0.9);
 			for (int k = nock; k >= 3; k--) set(g, k, k, k <= 4 ? 'G' : (k >= nock - 1 ? '4' : 'x'));
 		}
-		int[] stringPal = {0xa8c8e0, 0xc8e2f5, 0xe2f2ff, 0xf2faff, 0xffffff, 0xffffff};
 		int[] arrowPal = {0x3b2614, 0x553a1f, 0x6f4e2b, 0x8a663a, 0xd8e8f0, 0xffffff};
-		BufferedImage img = shadeMask(g, pull > 0 ? arrowPal : stringPal, wood, gem);
-		// keep the string bright even where it was auto shaded
-		for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) if (g[y][x] == '5') img.setRGB(x, y, argb(0xeef8ff));
+		BufferedImage img = shadeMask(g, arrowPal, wood, gem);
+		// thin bright string from tip to tip (pulled toward the lower-right), drawn after the outline
+		int ax = 2, ay = 13, bx = 13, by = 2;
+		for (int i = 0; i <= 40; i++) {
+			double t = i / 40.0;
+			double off = Math.sin(t * Math.PI) * pull * 1.3;
+			int px = (int) Math.round(ax + (bx - ax) * t + off), py = (int) Math.round(ay + (by - ay) * t + off);
+			if (filled(g, px, py) || px < 0 || py < 0 || px > 15 || py > 15) continue;
+			img.setRGB(px, py, argb(t < 0.5 ? 0xf2faff : 0xc8e2f5));
+		}
 		return img;
 	}
 
@@ -1366,21 +1611,29 @@ public class TextureGen {
 		return img;
 	}
 
+	/** Ingot drawn as a small 3D bar: lit top face, mid front face, dark end face, stamped star on top. */
 	static BufferedImage ingot(int[] pal, long seed) {
-		char[][] g = parse(
-				"................",
-				"................",
-				"................",
-				"................",
-				"................",
-				"......XXXXXX....",
-				"....XXXxxxxxXX..",
-				"..XXxxxxxxxxxx..",
-				"..xxxxxxxxxxx...",
-				"..xxxxxxxxx.....",
-				"..xxxxxxx.......",
-				"................");
-		return shadeMask(g, pal, pal, pal);
+		BufferedImage img = img(16, 16);
+		for (int y = 5; y <= 12; y++) for (int x = 1; x <= 14; x++) {
+			double t = -1;
+			if (y >= 5 && y <= 8) { // top face, slanting back to the right
+				int x0 = 6 - (y - 5), x1 = 12 - (y - 5);
+				if (x >= x0 && x <= x1) t = y == 5 ? 0.98 : 0.78 - (x - x0) * 0.015;
+				else if (x > x1 && x <= 13 - (y - 5) && y > 5) t = 0.3; // end face
+			}
+			if (y >= 9 && y <= 11) { // front face
+				if (x >= 2 && x <= 9) t = y == 9 ? 0.62 : y == 11 ? 0.32 : 0.48;
+				else if (x >= 10 && x <= 13 - (y - 8)) t = 0.2;     // end face
+			}
+			if (t >= 0) img.setRGB(x, y, argb(rampQ(pal, t + (hash(x, y, seed) - 0.5) * 0.06)));
+		}
+		img.setRGB(8, 6, argb(pal[pal.length - 1]));
+		img.setRGB(7, 7, argb(pal[pal.length - 2]));
+		img.setRGB(9, 7, argb(pal[pal.length - 2]));
+		img.setRGB(8, 7, argb(pal[pal.length - 1]));
+		img.setRGB(3, 9, argb(pal[pal.length - 2]));
+		outlineSel(img, 0.38);
+		return img;
 	}
 
 	static BufferedImage key(int[] metal, int[] gem) {
@@ -1492,43 +1745,48 @@ public class TextureGen {
 
 	static BufferedImage armor(int type, int[] mat, int[] trim) {
 		char[][] g = switch (type) {
-			case HELMET -> parse(
+			case HELMET -> parse( // closed great helm: visor with eye slits and breathing holes
 					"................",
 					"................",
-					"................",
-					"....xxxxxxxx....",
-					"...xxxxgGxxxx...",
-					"...xxxxxxxxxx...",
-					"...xhhhhhhhhx...",
-					"...xx......xx...",
-					"...xx......xx...",
-					"...hh......hh...");
+					"......hhhh......",
+					"....xxxhhxxx....",
+					"...xxxxhhxxxx...",
+					"..xxxxxhhxxxxx..",
+					"..hhhhhhhhhhhh..",
+					"..x000xXXx000x..",
+					"..xxxxxXXxxxxx..",
+					"..xx0xxXXxx0xx..",
+					"..xxxxxXXxxxxx..",
+					"...x0xxXXxx0x...",
+					"...xxxxggxxxx...",
+					"....hhhhhhhh....");
 			case CHEST -> parse(
 					"................",
-					"..xxxx....xxxx..",
-					".xxxxxxhhxxxxxx.",
-					".xxxxxxxxxxxxxx.",
-					".xxxxxxgGxxxxxx.",
-					".xxx.xxxxxx.xxx.",
+					"..hhhh....hhhh..",
+					".hxxxxhhhhxxxxh.",
+					".xxxxxxXXxxxxxx.",
+					".xxxxxxggxxxxxx.",
 					".xxx.xxggxx.xxx.",
-					".hhh.xxxxxx.hhh.",
+					".xxx.xxXXxx.xxx.",
+					".hhh.hhhhhh.hhh.",
+					".....xxXXxx.....",
+					".....hhGGhh.....",
 					".....xxxxxx.....",
-					".....hhhhhh.....",
-					".....xxxxxx.....",
+					".....xx..xx.....",
 					"................");
 			case LEGS -> parse(
 					"................",
 					"................",
 					"....hhhhhhhh....",
-					"....xxxxgxxx....",
+					"....xxxGgxxx....",
 					"....xxxxxxxx....",
 					"....xxx..xxx....",
+					"....XXX..XXX....",
+					"....hgh..hgh....",
 					"....xxx..xxx....",
 					"....xxx..xxx....",
 					"....xxx..xxx....",
 					"....hhh..hhh....",
-					"....xxx..xxx....",
-					"....xxx..xxx....",
 					"................");
 			default -> parse(
 					"................",
@@ -1537,16 +1795,22 @@ public class TextureGen {
 					"................",
 					"................",
 					"................",
-					"................",
+					"...hhh....hhh...",
 					"...xxx....xxx...",
 					"...xgx....xgx...",
 					"...xxx....xxx...",
-					"..hxxx...hxxx...",
+					"..xxxx...xxxx...",
 					".xxxxx..xxxxx...",
 					".hhhhh..hhhhh...",
 					"................");
 		};
 		BufferedImage img = shadeMask(g, mat, trim, GLOWCRYSTAL == mat ? GOLD : mat);
+		if (type == HELMET) { // dark eye slits and breathing holes with a faint glow behind the eyes
+			for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++)
+				if (g[y][x] == '0') img.setRGB(x, y, argb(lerp(darken(mat[0], 0.3), 0x05030a, 0.5)));
+			img.setRGB(4, 7, argb(lerp(mat[0], mat[mat.length - 2], 0.55)));
+			img.setRGB(11, 7, argb(lerp(mat[0], mat[mat.length - 2], 0.55)));
+		}
 		return img;
 	}
 
@@ -1608,8 +1872,8 @@ public class TextureGen {
 
 		// weapons
 		save(hammer(MAGMA_P, GOLD, SHADOW_STEEL), "item/infernal_maul");
-		save(sword(OBSIDIAN_P, VOIDSHARD, SHADOW_STEEL, true), "item/void_reaver");
-		save(sword(ICE_P, IRON_P, FROST_HANDLE, true), "item/frostbite_blade");
+		save(sword(OBSIDIAN_P, VOIDSHARD, SHADOW_STEEL, SW_REAVER), "item/void_reaver");
+		save(sword(ICE_P, IRON_P, FROST_HANDLE, SW_FROST), "item/frostbite_blade");
 		save(spear(STORM_P, GOLD, WOOD), "item/thunder_spear");
 		save(staff(BONE_P, SOUL_P), "item/bone_scepter");
 		save(spear(GLOWCRYSTAL, GOLD, AURORA_WOOD), "item/sky_pike");
@@ -1878,7 +2142,7 @@ public class TextureGen {
 		save(key(SHADOW_STEEL, ECHO_CRYSTAL), "item/sculk_key");
 		save(shard(ECHO_CRYSTAL, 301), "item/echo_crystal");
 		save(heart(new int[]{0x0d3a42, 0x135058, 0x1a6a72, 0x29dfeb, 0x5cf2ff, 0xb0ffff}), "item/echo_heart");
-		save(sword(ECHO_CRYSTAL, SHADOW_STEEL, SHADOW_STEEL, true), "item/sonic_blade");
+		save(sword(ECHO_CRYSTAL, SHADOW_STEEL, SHADOW_STEEL, SW_SONIC), "item/sonic_blade");
 		save(horn(), "item/echo_horn");
 		save(meat(new int[]{0x8a3a4a, 0xb04a5a, 0xd06a7a, 0xe890a0, 0xf8c0c8, 0xffe0e8}), "item/glimmer_venison");
 		save(meat(new int[]{0x5a2a1a, 0x7a3a22, 0x9a522e, 0xb86a3e, 0xd08a58, 0xe8b080}), "item/cooked_glimmer_venison");
@@ -2061,25 +2325,142 @@ public class TextureGen {
 	static BufferedImage armorLayer(int[] mat, int[] trim, boolean legs, long seed) {
 		BufferedImage img = new BufferedImage(64, 32, BufferedImage.TYPE_INT_ARGB);
 		double[][] n = fbm(64, 32, seed, new int[]{8, 4, 2}, new double[]{0.5, 0.3, 0.2});
-		// UV boxes of the vanilla humanoid model: {u, v, w, h, d}
-		int[][] boxes = legs
-				? new int[][]{{16, 16, 8, 12, 4}, {0, 16, 4, 12, 4}}
-				: new int[][]{{0, 0, 8, 8, 8}, {16, 16, 8, 12, 4}, {40, 16, 4, 12, 4}, {0, 16, 4, 12, 4}};
-		for (int[] b : boxes) {
-			paintBox(img, b[0], b[1], b[2], b[3], b[4], (x, y, face, fx, fy, fw, fh) -> {
-				boolean edge = fx == 0 || fy == 0 || fx == fw - 1 || fy == fh - 1;
-				double v = n[x % 64][y % 32];
-				int c;
-				if (edge) c = trim[fx == 0 || fy == 0 ? 3 : 1];
-				else c = mat[clamp(1 + (int) (v * 4), 1, 4)];
-				// gem in the middle of front faces
-				if (face == 1 && Math.abs(fx - fw / 2.0 + 0.5) < 1 && Math.abs(fy - fh / 2.0 + 0.5) < 1) c = mat[5];
-				return c;
+		// UV boxes of the vanilla humanoid model: head (0,0) 8x8x8, hat (32,0), body (16,16) 8x12x4, arm (40,16) and leg (0,16) 4x12x4.
+		// Face ids of paintBox: 0 top, 1 front, 2 right, 3 back, 4 left, 5 bottom.
+		int slit = lerp(darken(mat[0], 0.25), 0x05030a, 0.5);
+		int eyeGlow = lerp(slit, mat[mat.length - 2], 0.55);
+		if (!legs) {
+			// ---- closed great helm: every face opaque, the face is hidden behind a visor
+			paintBox(img, 0, 0, 8, 8, 8, (x, y, face, fx, fy, fw, fh) -> {
+				double t = plate(n, x, y, fx, fy, fw, fh);
+				switch (face) {
+					case 0 -> { // dome with a crest ridge and rivets
+						if (fx == 3 || fx == 4) return rampQ(trim, fx == 3 ? 0.85 : 0.5);
+						if ((fx == 1 || fx == 6) && (fy == 1 || fy == 6)) return rampQ(trim, 0.9);
+						return rampQ(mat, t + 0.12 - Math.hypot(fx - 3.5, fy - 3.5) * 0.04);
+					}
+					case 5 -> {
+						return rampQ(mat, 0.08);
+					}
+					case 1 -> { // visor
+						if (fy == 0 || fy == 7) return rampQ(trim, fy == 0 ? 0.88 : 0.45);   // brow and chin rims
+						if (fy == 3) {                                                     // eye slits beside the nose guard
+							if (fx == 1 || fx == 6) return slit;
+							if (fx == 2 || fx == 5) return eyeGlow;
+							if (fx == 3 || fx == 4) return rampQ(mat, fx == 3 ? 0.9 : 0.6);
+							return rampQ(mat, 0.35);
+						}
+						if (fy == 2) return rampQ(mat, fx == 3 || fx == 4 ? 0.95 : 0.78);     // lit brow plate
+						if (fy == 4) return rampQ(mat, fx == 3 || fx == 4 ? 0.7 : 0.28);      // shadow under the slit
+						if ((fy == 5 || fy == 6) && (fx == 1 || fx == 6) && ((fx + fy) & 1) == 0) return slit; // breathing holes
+						if (fx == 3 || fx == 4) return rampQ(mat, t + 0.22);                  // centre ridge
+						return rampQ(mat, t);
+					}
+					case 3 -> { // neck guard lames
+						if (fy == 0) return rampQ(trim, 0.8);
+						if (fy == 7) return rampQ(trim, 0.4);
+						if (fy == 4 || fy == 6) return rampQ(mat, 0.2);
+						if (fx == 3 || fx == 4) return rampQ(mat, t + 0.18);
+						return rampQ(mat, t + (fy == 5 ? 0.12 : 0));
+					}
+					default -> { // sides: ear disc, rim, breathing holes, seam towards the visor
+						boolean frontEdge = face == 2 ? fx == 7 : fx == 0;
+						if (fy == 0 || fy == 7) return rampQ(trim, fy == 0 ? 0.8 : 0.4);
+						if (frontEdge) return rampQ(mat, 0.18);
+						double d = Math.hypot(fx - 3.5, fy - 3.5);
+						if (d < 0.8) return rampQ(trim, 0.95);
+						if (d < 1.8) return rampQ(trim, fx + fy < 7 ? 0.7 : 0.35);
+						if (fy == 6 && (fx == 2 || fx == 5)) return slit;
+						return rampQ(mat, t);
+					}
+				}
+			});
+			// crest on the outer helmet layer (sits half a pixel above the helm)
+			paintBox(img, 32, 0, 8, 8, 8, (x, y, face, fx, fy, fw, fh) -> {
+				if (face == 0 && (fx == 3 || fx == 4)) return rampQ(trim, fx == 3 ? 0.95 : 0.6);
+				if ((face == 1 || face == 3) && (fx == 3 || fx == 4) && fy <= (face == 1 ? 0 : 1)) return rampQ(trim, fx == 3 ? 0.85 : 0.5);
+				return -1;
+			});
+			// ---- breastplate
+			paintBox(img, 16, 16, 8, 12, 4, (x, y, face, fx, fy, fw, fh) -> {
+				double t = plate(n, x, y, fx, fy, fw, fh);
+				if (face == 0 || face == 5) return rampQ(face == 0 ? trim : mat, face == 0 ? 0.7 : 0.15);
+				if (fy == 0) return rampQ(trim, 0.85);                                     // gorget rim
+				if (fy == 9) return (face == 1 && (fx == 3 || fx == 4)) ? rampQ(trim, 0.95) : rampQ(LEATHER_P, 0.35); // belt + buckle
+				if (fy == 6) return rampQ(trim, 0.6);
+				if (fy == 7 || fy == 8 || fy >= 10) return rampQ(mat, (fy == 7 || fy == 10) ? 0.72 : 0.36); // fauld lames
+				if (face == 1) {
+					double dg = Math.abs(fx - 3.5) + Math.abs(fy - 3.5);
+					if (dg < 1.1) return mat[mat.length - 1];                              // emblem gem
+					if (dg < 2.1) return rampQ(trim, fx + fy < 7 ? 0.9 : 0.45);
+					if (fx == 3 || fx == 4) return rampQ(mat, t + 0.2);                     // centre ridge
+					return rampQ(mat, t + (fx < 4 ? 0.06 : -0.06) - Math.abs(fx - 3.5) * 0.03);
+				}
+				if (face == 3 && (fx == 3 || fx == 4)) return rampQ(mat, t + 0.16);          // spine
+				if ((face == 2 || face == 4) && fx == 1) return rampQ(LEATHER_P, 0.4);       // side straps
+				return rampQ(mat, t);
+			});
+			// ---- arms: pauldron, rerebrace, couter, vambrace, cuff
+			paintBox(img, 40, 16, 4, 12, 4, (x, y, face, fx, fy, fw, fh) -> {
+				double t = plate(n, x, y, fx, fy, fw, fh);
+				if (face == 0) return (fx == 1 || fx == 2) && (fy == 1 || fy == 2) ? rampQ(trim, 0.95) : rampQ(mat, 0.75);
+				if (face == 5) return rampQ(LEATHER_P, 0.3);
+				if (fy == 0) return rampQ(trim, 0.9);
+				if (fy == 3) return rampQ(trim, 0.5);
+				if (fy == 1 || fy == 2) return rampQ(mat, fy == 1 ? 0.8 : 0.5);
+				if (fy == 7) return (fx == 1 || fx == 2) ? rampQ(trim, 0.85) : rampQ(mat, 0.3);
+				if (fy == 11) return rampQ(trim, 0.55);
+				return rampQ(mat, t);
+			});
+			// ---- sabatons and greaves (upper leg left open so leggings stay visible)
+			paintBox(img, 0, 16, 4, 12, 4, (x, y, face, fx, fy, fw, fh) -> {
+				if (face == 0) return -1;
+				if (face == 5) return rampQ(mat, 0.1);                                    // sole
+				if (fy < 5) return -1;
+				double t = plate(n, x, y, fx, fy - 5, fw, fh - 5);
+				if (fy == 5) return rampQ(trim, 0.85);                                    // cuff
+				if (fy == 11) return rampQ(mat, 0.12);
+				if (fy == 9 && face == 1) return rampQ(trim, 0.6);                        // toe cap seam
+				if (fy == 10 && face == 1) return rampQ(mat, 0.8);
+				return rampQ(mat, t);
+			});
+		} else {
+			// ---- leggings: belt and tassets over a quilted gambeson
+			paintBox(img, 16, 16, 8, 12, 4, (x, y, face, fx, fy, fw, fh) -> {
+				double t = plate(n, x, y, fx, fy, fw, fh);
+				if (face == 0) return rampQ(LEATHER_P, 0.5);
+				if (face == 5) return rampQ(mat, 0.15);
+				if (fy < 7) return rampQ(mat, ((fx + fy) & 1) == 0 ? 0.32 : 0.22 + (fy == 0 ? 0.1 : 0)); // mail shirt under the belt
+				if (fy == 7) return (face == 1 && (fx == 3 || fx == 4)) ? rampQ(trim, 0.95) : rampQ(trim, 0.45); // belt
+				if (fy == 8) return rampQ(mat, 0.85);
+				if (fx == 3 || fx == 4) return face == 1 ? rampQ(mat, 0.25) : rampQ(mat, t);  // split between tassets
+				return rampQ(mat, t + (fy == 11 ? -0.25 : 0));
+			});
+			paintBox(img, 0, 16, 4, 12, 4, (x, y, face, fx, fy, fw, fh) -> {
+				double t = plate(n, x, y, fx, fy, fw, fh);
+				if (face == 0) return rampQ(mat, 0.6);
+				if (face == 5) return rampQ(mat, 0.15);
+				if (fy == 0) return rampQ(trim, 0.8);
+				if (fy == 5 || fy == 6) {                                                     // knee cop
+					if (face == 1 && (fx == 1 || fx == 2)) return rampQ(trim, fy == 5 ? 0.95 : 0.6);
+					return rampQ(mat, fy == 5 ? 0.85 : 0.3);
+				}
+				if (fy == 11) return rampQ(trim, 0.45);
+				if (face == 1 && fx == 1) return rampQ(mat, t + 0.15);                       // shin ridge
+				return rampQ(mat, t);
 			});
 		}
-		// helmet visor
-		if (!legs) for (int x = 9; x < 15; x++) img.setRGB(x, 12, argb(darken(mat[0], 0.4)));
 		return img;
+	}
+
+	/** Plate metal tone for armor faces: noise plus a 1px bevel (lit top/left, shaded bottom/right). */
+	static double plate(double[][] n, int x, int y, int fx, int fy, int fw, int fh) {
+		double t = 0.5 + (n[x % 64][y % 32] - 0.5) * 0.35;
+		if (fy == 0) t += 0.2;
+		else if (fy == fh - 1) t -= 0.2;
+		if (fx == 0) t += 0.1;
+		else if (fx == fw - 1) t -= 0.14;
+		return t;
 	}
 
 	interface FacePainter {
@@ -2100,7 +2481,8 @@ public class TextureGen {
 			for (int fy = 0; fy < f[3]; fy++) for (int fx = 0; fx < f[2]; fx++) {
 				int x = f[0] + fx, y = f[1] + fy;
 				if (x >= img.getWidth() || y >= img.getHeight()) continue;
-				img.setRGB(x, y, argb(p.paint(x, y, f[4], fx, fy, f[2], f[3])));
+				int c = p.paint(x, y, f[4], fx, fy, f[2], f[3]);
+				img.setRGB(x, y, c < 0 ? 0 : argb(c)); // negative = leave transparent
 			}
 		}
 	}
@@ -2287,6 +2669,668 @@ public class TextureGen {
 		return col;
 	}
 
+	// ================================================================ 3D HELD WEAPONS
+	/*
+	 * Every weapon is built from cuboids in an "upright" frame: it points up (+y) along x = 8, z = 8 and is gripped
+	 * around y = 0. Each element is then turned -45 degrees around the model centre (8, 8, 8), which lines it up with
+	 * the diagonal 2D sprite, so the usual handheld / bow display transforms hold it exactly like the flat item.
+	 * TextureGen paints the texture sheet item/<name>_3d.png; DataGen writes models/item/<name>_3d.json from the
+	 * same definitions (models3d()), so UVs and textures always match.
+	 */
+	/** Texels per model unit on the 3D sheets: twice the detail of a 16x16 sprite. */
+	static final int TEXELS = 2;
+	static final String[] FACES = {"down", "up", "north", "south", "west", "east"};
+
+	/** A texel being painted: its point on the part (upright frame), face, place on the face and face size in texels. */
+	record Tx(Part p, double x, double y, double z, int f, double u, double v, int i, int j, int w, int h) {
+		boolean edgeFace() { return f == 4 || f == 5; }
+		boolean flat() { return f == 2 || f == 3; }
+		double ry() { return (y - p.y0) / Math.max(1e-6, p.y1 - p.y0); }
+		/** -1 .. 1 across the part, mirrored on the north face so negative is always the viewer's left. */
+		double rx() {
+			double r = (x - (p.x0 + p.x1) / 2) / Math.max(1e-6, (p.x1 - p.x0) / 2);
+			return f == 2 ? -r : r;
+		}
+		double n() { return hash3(x, y, z + f * 3.1); }
+	}
+
+	interface Paint {
+		int color(Tx t);
+	}
+
+	static final class Part {
+		final double x0, y0, z0, x1, y1, z1;
+		final Paint paint;
+		double tilt, pivotX = 8, pivotY = 8;
+		int light;
+		final int[][] rect = new int[6][];
+
+		Part(double x0, double y0, double z0, double x1, double y1, double z1, Paint paint) {
+			this.x0 = x0; this.y0 = y0; this.z0 = z0; this.x1 = x1; this.y1 = y1; this.z1 = z1;
+			this.paint = paint;
+		}
+
+		Part tilt(double deg, double px, double py) {
+			tilt = deg; pivotX = px; pivotY = py;
+			return this;
+		}
+
+		Part light(int l) {
+			light = l;
+			return this;
+		}
+
+		int[] texels(int f) {
+			double dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
+			double w = f <= 3 ? dx : dz, h = f <= 1 ? dz : dy;
+			return new int[]{Math.max(1, (int) Math.round(w * TEXELS)), Math.max(1, (int) Math.round(h * TEXELS))};
+		}
+
+		/** Point on face f for face coordinates u, v (0..1, v = 0 at the top); matches Minecraft's UV orientation. */
+		double[] point(int f, double u, double v) {
+			double dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
+			return switch (f) {
+				case 0 -> new double[]{x0 + u * dx, y0, z1 - v * dz};
+				case 1 -> new double[]{x0 + u * dx, y1, z0 + v * dz};
+				case 2 -> new double[]{x1 - u * dx, y1 - v * dy, z0};
+				case 3 -> new double[]{x0 + u * dx, y1 - v * dy, z1};
+				case 4 -> new double[]{x0, y1 - v * dy, z0 + u * dz};
+				default -> new double[]{x1, y1 - v * dy, z1 - u * dz};
+			};
+		}
+
+		/** Upright-frame tilt followed by the global -45 degree turn, applied to an (x, y) point. */
+		double[] transform(double x, double y) {
+			double rt = Math.toRadians(tilt), vx = x - pivotX, vy = y - pivotY;
+			double ax = pivotX + vx * Math.cos(rt) - vy * Math.sin(rt), ay = pivotY + vx * Math.sin(rt) + vy * Math.cos(rt);
+			double g = Math.toRadians(-45), bx = ax - 8, by = ay - 8;
+			return new double[]{8 + bx * Math.cos(g) - by * Math.sin(g), 8 + bx * Math.sin(g) + by * Math.cos(g)};
+		}
+	}
+
+	static final class Model3D {
+		final String name, particle;
+		final List<Part> parts = new ArrayList<>();
+		String display = "handheld";
+		int sheet;
+
+		Model3D(String name, String particle) {
+			this.name = name;
+			this.particle = particle;
+		}
+
+		Model3D(String name) {
+			this(name, name);
+		}
+
+		Part add(Part p) {
+			parts.add(p);
+			return p;
+		}
+
+		/** Box centred on x = cx, z = 8. */
+		Part box(double cx, double y0, double w, double h, double d, Paint p) {
+			return add(new Part(cx - w / 2, y0, 8 - d / 2, cx + w / 2, y0 + h, 8 + d / 2, p));
+		}
+
+		/** Square turned 45 degrees: a diamond whose corners are diag / 2 from (cx, cy) - used for pointed tips. */
+		Part diamond(double cx, double cy, double diag, double d, Paint p) {
+			double s = diag / Math.sqrt(2);
+			return add(new Part(cx - s / 2, cy - s / 2, 8 - d / 2, cx + s / 2, cy + s / 2, 8 + d / 2, p)).tilt(45, cx, cy);
+		}
+
+		/** Bar from point A to point B with thickness th and depth d (its local +y runs from A to B). */
+		Part beam(double ax, double ay, double bx, double by, double th, double d, Paint p) {
+			double len = Math.hypot(bx - ax, by - ay), mx = (ax + bx) / 2, my = (ay + by) / 2;
+			Part s = add(new Part(mx - th / 2, my - len / 2, 8 - d / 2, mx + th / 2, my + len / 2, 8 + d / 2, p));
+			return s.tilt(Math.toDegrees(Math.atan2(-(bx - ax), by - ay)), mx, my);
+		}
+
+		/** Chain of bars along a circular arc, a0 < a1 in degrees (counter-clockwise); local +x of each bar points outwards. */
+		void arc(double cx, double cy, double r, double a0, double a1, int segs, double t0, double t1, double d, Paint p, int light) {
+			for (int i = 0; i < segs; i++) {
+				double s0 = Math.toRadians(a0 + (a1 - a0) * i / segs) - 0.12 / r, s1 = Math.toRadians(a0 + (a1 - a0) * (i + 1) / segs) + 0.12 / r;
+				double th = t0 + (t1 - t0) * (i + 0.5) / segs;
+				beam(cx + Math.cos(s0) * r, cy + Math.sin(s0) * r, cx + Math.cos(s1) * r, cy + Math.sin(s1) * r, th, d + (i % 2) * 0.03, p).light(light);
+			}
+		}
+
+		void layout() {
+			for (int size : new int[]{32, 64, 128}) {
+				if (pack(size)) {
+					sheet = size;
+					return;
+				}
+			}
+			throw new IllegalStateException("3D texture sheet too small for " + name);
+		}
+
+		/** Shelf packing of all faces with a 1px gap. */
+		boolean pack(int size) {
+			List<int[]> faces = new ArrayList<>();
+			for (int i = 0; i < parts.size(); i++) for (int f = 0; f < 6; f++) {
+				int[] wh = parts.get(i).texels(f);
+				faces.add(new int[]{i, f, wh[0], wh[1]});
+			}
+			faces.sort((a, b) -> b[3] != a[3] ? b[3] - a[3] : b[2] - a[2]);
+			int x = 0, y = 0, rowH = 0;
+			for (int[] fc : faces) {
+				if (x + fc[2] > size) {
+					x = 0;
+					y += rowH + 1;
+					rowH = 0;
+				}
+				if (fc[2] > size || y + fc[3] > size) return false;
+				parts.get(fc[0]).rect[fc[1]] = new int[]{x, y, fc[2], fc[3]};
+				x += fc[2] + 1;
+				rowH = Math.max(rowH, fc[3]);
+			}
+			return true;
+		}
+
+		BufferedImage paint() {
+			layout();
+			BufferedImage img = img(sheet, sheet);
+			for (Part p : parts) for (int f = 0; f < 6; f++) {
+				int[] r = p.rect[f];
+				for (int j = 0; j < r[3]; j++) for (int i = 0; i < r[2]; i++) {
+					double u = (i + 0.5) / r[2], v = (j + 0.5) / r[3];
+					double[] pt = p.point(f, u, v);
+					img.setRGB(r[0] + i, r[1] + j, argb(p.paint.color(new Tx(p, pt[0], pt[1], pt[2], f, u, v, i, j, r[2], r[3]))));
+				}
+			}
+			return img;
+		}
+
+		/** The element model JSON (texture "0" is the generated sheet). */
+		String json(String ns) {
+			layout();
+			StringBuilder sb = new StringBuilder("{\"textures\":{\"particle\":\"" + ns + ":item/" + particle + "\",\"0\":\"" + ns + ":item/" + name + "_3d\"},\"elements\":[");
+			for (int k = 0; k < parts.size(); k++) {
+				Part p = parts.get(k);
+				double th = p.tilt - 45;
+				th = ((th % 360) + 540) % 360 - 180;
+				double[] t0 = p.transform(0, 0);
+				double fx0 = p.x0, fy0 = p.y0, fx1 = p.x1, fy1 = p.y1;
+				String rot = "";
+				double rad = Math.toRadians(th), cos = Math.cos(rad), sin = Math.sin(rad);
+				if (Math.abs(sin) < 1e-9 && cos > 0) {
+					fx0 += t0[0]; fx1 += t0[0]; fy0 += t0[1]; fy1 += t0[1];
+				} else {
+					// fixed point q of v -> R(th) v + t0
+					double a = 1 - cos, b = sin, c = -sin, det = a * a - b * c;
+					double qx = (a * t0[0] - b * t0[1]) / det, qy = (-c * t0[0] + a * t0[1]) / det;
+					rot = ",\"rotation\":{\"origin\":[" + f(qx) + "," + f(qy) + ",8],\"axis\":\"z\",\"angle\":" + f(th) + "}";
+				}
+				for (double v : new double[]{fx0, fy0, p.z0, fx1, fy1, p.z1})
+					if (v < -16 || v > 32) throw new IllegalStateException(name + ": element outside -16..32");
+				if (k > 0) sb.append(",");
+				sb.append("{\"from\":[").append(f(fx0)).append(",").append(f(fy0)).append(",").append(f(p.z0)).append("],\"to\":[").append(f(fx1)).append(",")
+						.append(f(fy1)).append(",").append(f(p.z1)).append("]").append(rot);
+				if (p.light > 0) sb.append(",\"light_emission\":").append(p.light);
+				sb.append(",\"faces\":{");
+				for (int fc = 0; fc < 6; fc++) {
+					int[] r = p.rect[fc];
+					double s = 16.0 / sheet;
+					if (fc > 0) sb.append(",");
+					sb.append("\"").append(FACES[fc]).append("\":{\"uv\":[").append(f(r[0] * s)).append(",").append(f(r[1] * s)).append(",").append(f((r[0] + r[2]) * s))
+							.append(",").append(f((r[1] + r[3]) * s)).append("],\"texture\":\"#0\"}");
+				}
+				sb.append("}}");
+			}
+			sb.append("],\"display\":").append(displayJson()).append("}");
+			return sb.toString();
+		}
+
+		String displayJson() {
+			String common = "\"ground\":{\"rotation\":[0,0,0],\"translation\":[0,2,0],\"scale\":[0.5,0.5,0.5]},"
+					+ "\"head\":{\"rotation\":[0,180,0],\"translation\":[0,13,7],\"scale\":[1,1,1]},"
+					+ "\"fixed\":{\"rotation\":[0,180,0],\"translation\":[0,0,0],\"scale\":[1,1,1]},"
+					+ "\"gui\":{\"rotation\":[0,0,0],\"translation\":[0,0,0],\"scale\":[1,1,1]},"
+					+ "\"firstperson_righthand\":{\"rotation\":[0,-90,25],\"translation\":[1.13,3.2,1.13],\"scale\":[0.68,0.68,0.68]},"
+					+ "\"firstperson_lefthand\":{\"rotation\":[0,90,-25],\"translation\":[1.13,3.2,1.13],\"scale\":[0.68,0.68,0.68]}";
+			if (display.equals("bow"))
+				return "{\"thirdperson_righthand\":{\"rotation\":[-80,260,-40],\"translation\":[-1,-2,2.5],\"scale\":[0.9,0.9,0.9]},"
+						+ "\"thirdperson_lefthand\":{\"rotation\":[-80,-280,40],\"translation\":[-1,-2,2.5],\"scale\":[0.9,0.9,0.9]}," + common + "}";
+			return "{\"thirdperson_righthand\":{\"rotation\":[0,-90,55],\"translation\":[0,4,0.5],\"scale\":[0.85,0.85,0.85]},"
+					+ "\"thirdperson_lefthand\":{\"rotation\":[0,90,-55],\"translation\":[0,4,0.5],\"scale\":[0.85,0.85,0.85]}," + common + "}";
+		}
+
+		static String f(double v) {
+			double r = Math.round(v * 10000) / 10000.0;
+			if (r == Math.rint(r)) return Long.toString((long) r);
+			return Double.toString(r);
+		}
+	}
+
+	// ------------------------------------------------------------ 3D materials
+	static Paint bladeP(int[] pal) {
+		return t -> {
+			double n = (t.n() - 0.5) * 0.1, tt;
+			if (t.edgeFace()) tt = 0.9;                       // honed edge
+			else if (!t.flat()) tt = 0.74;
+			else {
+				double a = t.rx();
+				if (Math.abs(a) > 0.7) tt = a < 0 ? 1.0 : 0.66;   // bevelled cutting edges
+				else if (Math.abs(a) > 0.5) tt = 0.4;            // bevel line
+				else tt = 0.6 - a * 0.14;
+				tt += (t.ry() - 0.5) * 0.14;
+			}
+			return rampQ(pal, tt + n);
+		};
+	}
+
+	static Paint ridgeP(int[] pal, int[] glow, boolean runes) {
+		return t -> {
+			if (runes && t.flat() && Math.floorMod((int) Math.floor(t.y * TEXELS), 6) == 2) return glow[glow.length - 2];
+			double tt = t.flat() ? 0.82 : t.edgeFace() ? 0.46 : 0.7;
+			return rampQ(pal, tt + (t.n() - 0.5) * 0.1 + (t.ry() - 0.5) * 0.1);
+		};
+	}
+
+	static Paint tipP(int[] pal) {
+		return t -> rampQ(pal, (t.flat() ? 0.92 - (t.u + t.v) * 0.12 : 0.85) + (t.n() - 0.5) * 0.08);
+	}
+
+	static Paint crystalP(int[] pal) {
+		return t -> {
+			double fy = t.y * 0.6 + t.x * 0.25, fx = t.x * 0.7 - t.y * 0.2 + t.z * 0.4;
+			int cy = (int) Math.floor(fy), cx = (int) Math.floor(fx + cy * 0.5);
+			double tt = 0.4 + hash(cx, cy + t.f * 7, pal[1]) * 0.42;
+			double fr = fy - cy;
+			if (fr < 0.14) tt += 0.28;                        // bright facet edge
+			else if (fr > 0.86) tt -= 0.12;
+			if (t.edgeFace()) tt += 0.08;
+			if (t.n() > 0.965) tt = 1.05;                      // sparkle
+			return rampQ(pal, tt + (t.n() - 0.5) * 0.06);
+		};
+	}
+
+	static Paint metalP(int[] pal) {
+		return t -> {
+			double tt = 0.55 + (t.n() - 0.5) * 0.14;
+			if (t.f == 1) tt += 0.18;
+			else if (t.f == 0) tt -= 0.22;
+			else if (t.edgeFace()) tt -= 0.05;
+			if (t.w >= 3 && t.h >= 3) {
+				if (t.j == 0) tt += 0.24;
+				else if (t.j == t.h - 1) tt -= 0.2;
+				else if (t.i == 0) tt += 0.1;
+				else if (t.i == t.w - 1) tt -= 0.12;
+			} else if (t.h >= 3 && t.j == 0) tt += 0.15;
+			return rampQ(pal, tt);
+		};
+	}
+
+	static Paint gripP(int[] pal) {
+		return t -> {
+			if (!t.flat() && !t.edgeFace()) return rampQ(pal, 0.4);
+			int k = Math.floorMod(t.h - t.j + t.i, 3);
+			double tt = k == 0 ? 0.2 : k == 1 ? 0.5 : 0.68;
+			return rampQ(pal, tt + (t.n() - 0.5) * 0.08 - (t.edgeFace() ? 0.06 : 0));
+		};
+	}
+
+	static Paint woodP(int[] pal) {
+		return t -> {
+			if (t.f <= 1) return rampQ(pal, 0.62 - Math.hypot(t.u - 0.5, t.v - 0.5) * 0.4);
+			double g = Math.sin((t.x + t.z) * 4.2 + Math.sin(t.y * 0.8) * 1.6) * 0.5 + 0.5;
+			double tt = 0.34 + g * 0.3 + (t.n() - 0.5) * 0.1 + (t.edgeFace() ? -0.05 : 0.04);
+			if (t.n() > 0.975) tt -= 0.22; // knots
+			return rampQ(pal, tt);
+		};
+	}
+
+	static Paint boneP(int[] pal) {
+		return t -> {
+			double tt = 0.62 + (t.n() - 0.5) * 0.16 + (t.edgeFace() ? -0.1 : 0);
+			if (Math.floorMod((int) Math.floor(t.y * TEXELS), 7) == 0) tt -= 0.22; // joints
+			if (!t.flat() && !t.edgeFace()) tt = 0.72;
+			return rampQ(pal, tt);
+		};
+	}
+
+	static Paint gemP(int[] pal) {
+		return t -> {
+			double d = Math.hypot(t.u - 0.36, t.v - 0.36);
+			double tt = 1.02 - d * 1.05;
+			if ((t.i == 0 || t.j == 0) && t.w > 1 && t.h > 1) tt += 0.08;
+			return rampQ(pal, tt);
+		};
+	}
+
+	static Paint glowP(int[] pal) {
+		return t -> rampQ(pal, 0.82 + (t.n() - 0.5) * 0.2 + (t.flat() ? 0.06 : 0));
+	}
+
+	static Paint rockP(int[] rock, int[] lava) {
+		return t -> {
+			double crack = Math.sin(t.x * 2.3 + t.y * 1.7 + t.z * 0.9) * Math.cos(t.y * 2.1 - t.z * 1.9 + t.x * 0.6);
+			if (crack > 0.62) return rampQ(lava, 0.7 + crack * 0.3);
+			double tt = 0.3 + t.n() * 0.35 + (t.f == 1 ? 0.15 : t.f == 0 ? -0.15 : 0);
+			return rampQ(rock, tt);
+		};
+	}
+
+	/** Curved blade (arc bars): local -x side (west face) is the inner, sharpened edge. */
+	static Paint arcBladeP(int[] pal) {
+		return t -> {
+			double n = (t.n() - 0.5) * 0.1;
+			if (t.f == 4) return rampQ(pal, 1.0 + n);
+			if (t.f == 5) return rampQ(pal, 0.36 + n);
+			if (!t.flat()) return rampQ(pal, 0.62 + n);
+			double a = (t.x - (t.p.x0 + t.p.x1) / 2) / Math.max(1e-6, (t.p.x1 - t.p.x0) / 2);
+			double tt = a < -0.45 ? 0.95 : a > 0.6 ? 0.36 : 0.6 - a * 0.12;
+			return rampQ(pal, tt + n);
+		};
+	}
+
+	static Paint stringP() {
+		return t -> lerp(0xd8eaf8, 0xffffff, t.n() * 0.6);
+	}
+
+	static Paint featherP(int[] pal) {
+		return t -> rampQ(pal, 0.55 + t.ry() * 0.4 + (Math.floorMod(t.i, 2) == 0 ? -0.1 : 0.05));
+	}
+
+	static final int[] DAGGER_STEEL = {0x2d273b, 0x4a4060, 0x6e6390, 0x9a8fc0, 0xcfc6ee, 0xffffff};
+
+	// ------------------------------------------------------------ 3D weapon definitions
+	static List<Model3D> models3d() {
+		List<Model3D> out = new ArrayList<>();
+		out.add(sword3d("glowcrystal_sword", GLOWCRYSTAL, GOLD, WOOD, GLOWCRYSTAL, SW_PLAIN, 6));
+		out.add(sword3d("voidshard_sword", VOIDSHARD, SHADOW_STEEL, SHADOW_STEEL, VOIDSHARD, SW_PLAIN, 5));
+		out.add(sword3d("radiant_blade", RADIANT, GOLD, GLOWCRYSTAL, GLOWCRYSTAL, SW_RADIANT, 10));
+		out.add(sword3d("ember_greatsword", EMBER, GOLD, SHADOW_STEEL, EMBER, SW_EMBER, 9));
+		out.add(sword3d("void_reaver", OBSIDIAN_P, VOIDSHARD, SHADOW_STEEL, VOIDSHARD, SW_REAVER, 0));
+		out.add(sword3d("frostbite_blade", ICE_P, IRON_P, FROST_HANDLE, ICE_P, SW_FROST, 6));
+		out.add(sword3d("sonic_blade", ECHO_CRYSTAL, SHADOW_STEEL, SHADOW_STEEL, ECHO_CRYSTAL, SW_SONIC, 8));
+		out.add(dagger3d());
+		out.add(scythe3d());
+		out.add(hammer3d("star_hammer", STARMETAL, GLOWCRYSTAL, WOOD, false));
+		out.add(hammer3d("infernal_maul", MAGMA_P, GOLD, SHADOW_STEEL, true));
+		out.add(spear3d("thunder_spear", STORM_P, GOLD, WOOD, true));
+		out.add(spear3d("sky_pike", GLOWCRYSTAL, GOLD, AURORA_WOOD, false));
+		out.add(staff3d("aurora_staff", AURORA_WOOD, GLOWCRYSTAL, GOLD, 0));
+		out.add(staff3d("bone_scepter", BONE_P, SOUL_P, GOLD, 1));
+		out.add(staff3d("meteor_staff", SHADOW_STEEL, MAGMA_P, GOLD, 2));
+		out.add(axe3d("glowcrystal_axe", GLOWCRYSTAL, WOOD, GOLD, false));
+		out.add(axe3d("lumber_axe", GLOWCRYSTAL, AURORA_WOOD, GOLD, true));
+		out.add(pick3d("glowcrystal_pickaxe", GLOWCRYSTAL, WOOD, GOLD, false));
+		out.add(pick3d("voidshard_pickaxe", VOIDSHARD, SHADOW_STEEL, SHADOW_STEEL, false));
+		out.add(pick3d("excavator_pickaxe", OBSIDIAN_P, SHADOW_STEEL, GOLD, true));
+		out.add(shovel3d("glowcrystal_shovel", GLOWCRYSTAL, WOOD, GOLD));
+		for (int pull = 0; pull <= 3; pull++) {
+			String suffix = pull == 0 ? "" : "_pulling_" + (pull - 1);
+			out.add(bow3d("crystal_bow" + suffix, AURORA_WOOD, GLOWCRYSTAL, pull));
+			out.add(bow3d("storm_bow" + suffix, STORM_P, GOLD, pull));
+		}
+		return out;
+	}
+
+	static boolean crystalline(int[] pal) {
+		return pal == GLOWCRYSTAL || pal == VOIDSHARD || pal == ECHO_CRYSTAL || pal == ICE_P || pal == RADIANT || pal == EMBER;
+	}
+
+	static Model3D sword3d(String name, int[] blade, int[] guard, int[] grip, int[] gem, int style, int glow) {
+		Model3D m = new Model3D(name);
+		boolean big = style == SW_RADIANT || style == SW_EMBER || style == SW_REAVER;
+		double bw = big ? 3.5 : 2.5, top = big ? 19.5 : 18.5, gw = big ? 8 : 6.5, gy = 2.25;
+		Paint metal = metalP(guard);
+		m.box(8, -4.5, 2.25, 2, 2.25, metal);                          // pommel
+		m.box(8, -4.0, 1, 1, 2.6, gemP(gem)).light(15);               // pommel gem
+		m.box(8, -2.5, 1.5, 5.0, 1.5, gripP(grip));                   // wrapped grip
+		m.box(8, gy, gw, 1.5, 2.0, metal);                             // crossguard
+		m.box(8, gy - 0.5, 2.5, 2.5, 2.4, metal);                      // guard block
+		m.box(8, gy + 0.25, 1.25, 1.5, 2.8, gemP(gem)).light(15);     // guard gem
+		if (style == SW_PLAIN) {
+			m.box(8 - gw / 2 + 0.45, gy - 0.25, 0.9, 2.0, 2.2, metal);  // guard end caps
+			m.box(8 + gw / 2 - 0.45, gy - 0.25, 0.9, 2.0, 2.2, metal);
+		} else {
+			m.beam(8 - gw / 2 + 0.6, gy + 0.75, 8 - gw / 2 - 0.5, gy + 2.7, 1.0, 1.6, metal); // upswept quillons
+			m.beam(8 + gw / 2 - 0.6, gy + 0.75, 8 + gw / 2 + 0.5, gy + 2.7, 1.0, 1.6, metal);
+		}
+		double by = gy + 1.5, bodyTop = top - bw / 2;
+		Paint bp = crystalline(blade) && style == SW_PLAIN ? crystalP(blade) : bladeP(blade);
+		m.box(8, by, bw, bodyTop - by, 0.75, bp).light(glow);
+		m.box(8, by + 0.01, 0.75, bodyTop - by - 0.75, 1.25, ridgeP(blade, gem, style != SW_PLAIN)).light(glow);
+		m.diamond(8, bodyTop, bw, 0.7, tipP(blade)).light(glow);
+		switch (style) {
+			case SW_RADIANT -> {
+				m.diamond(8, gy + 1.0, 2.6, 2.9, gemP(GLOWCRYSTAL)).light(15);
+				m.box(8, by + 1.5, bw + 0.5, 0.5, 1.0, metalP(GOLD));
+			}
+			case SW_EMBER -> {
+				for (int i = 0; i < 4; i++) {
+					double y = by + 2 + i * 3.1;
+					m.beam(8 + bw / 2 - 0.3, y, 8 + bw / 2 + 1.0, y + 1.5, 0.75, 0.55, glowP(EMBER)).light(15);
+					m.beam(8 - bw / 2 + 0.3, y + 1.5, 8 - bw / 2 - 0.8, y + 2.8, 0.6, 0.5, glowP(EMBER)).light(15);
+				}
+			}
+			case SW_REAVER -> {
+				for (int i = 0; i < 4; i++) m.diamond(8 - bw / 2, by + 2.5 + i * 3.2, 1.7, 0.6, bladeP(blade));
+				m.box(8, by + 0.5, 0.5, bodyTop - by - 1.5, 1.4, glowP(VOIDSHARD)).light(15);
+			}
+			case SW_FROST -> {
+				m.diamond(8 - gw / 2 - 0.2, gy + 0.75, 1.8, 1.4, crystalP(ICE_P)).light(10);
+				m.diamond(8 + gw / 2 + 0.2, gy + 0.75, 1.8, 1.4, crystalP(ICE_P)).light(10);
+				m.beam(8 + bw / 2 - 0.2, by + 4, 8 + bw / 2 + 1.1, by + 5.8, 0.7, 0.6, crystalP(ICE_P)).light(10);
+				m.beam(8 - bw / 2 + 0.2, by + 8, 8 - bw / 2 - 1.0, by + 9.6, 0.6, 0.6, crystalP(ICE_P)).light(10);
+			}
+			case SW_SONIC -> {
+				for (int i = 0; i < 3; i++) m.box(8, by + 2.5 + i * 3.8, bw + 0.5, 0.5, 1.4, glowP(ECHO_CRYSTAL)).light(15);
+			}
+			default -> {
+			}
+		}
+		return m;
+	}
+
+	static Model3D dagger3d() {
+		Model3D m = new Model3D("shadow_dagger");
+		Paint metal = metalP(SHADOW_STEEL);
+		m.box(8, -2.75, 1.9, 1.5, 1.9, metal);
+		m.box(8, -2.4, 0.9, 0.8, 2.2, gemP(VOIDSHARD)).light(15);
+		m.box(8, -1.25, 1.25, 3.75, 1.25, gripP(SHADOW_STEEL));
+		m.box(8, 2.5, 4.75, 1.0, 1.75, metal);
+		m.beam(8 - 2.1, 2.8, 8 - 2.9, 4.2, 0.8, 1.4, metal);
+		m.beam(8 + 2.1, 2.8, 8 + 2.9, 4.2, 0.8, 1.4, metal);
+		m.box(8, 2.6, 1.1, 1.1, 2.1, gemP(VOIDSHARD)).light(15);
+		m.box(8, 3.5, 2.2, 8.5, 0.6, bladeP(DAGGER_STEEL));
+		m.box(8, 3.51, 0.6, 8.0, 1.0, ridgeP(DAGGER_STEEL, VOIDSHARD, true));
+		m.box(8 - 0.95, 3.8, 0.3, 7.8, 0.7, glowP(VOIDSHARD)).light(15);
+		m.diamond(8, 12.0, 2.2, 0.55, tipP(DAGGER_STEEL));
+		return m;
+	}
+
+	static Model3D scythe3d() {
+		Model3D m = new Model3D("void_scythe");
+		Paint metal = metalP(SHADOW_STEEL), wood = woodP(SHADOW_STEEL);
+		m.box(8, -7, 1.5, 23.5, 1.5, wood);
+		m.box(8, -5.25, 1.8, 3.0, 1.8, gripP(LEATHER_P));
+		m.box(8, 4.5, 1.8, 2.25, 1.8, gripP(LEATHER_P));
+		m.diamond(8, -7.25, 1.8, 1.3, metal);
+		m.box(8, 14.0, 2.4, 2.75, 2.1, metal);
+		m.box(8, 14.6, 1.0, 1.0, 2.5, gemP(VOIDSHARD)).light(15);
+		// big crescent over the top, curving down to the left like the sprite
+		m.arc(7.3, 8.0, 7.3, 80, 222, 11, 2.7, 0.5, 0.75, arcBladeP(VOIDSHARD), 8);
+		m.beam(8.5, 15.8, 10.2, 18.2, 0.9, 0.9, metal);
+		m.diamond(10.4, 18.4, 1.3, 0.8, gemP(VOIDSHARD)).light(15);
+		return m;
+	}
+
+	static Model3D hammer3d(String name, int[] head, int[] gem, int[] handle, boolean maul) {
+		Model3D m = new Model3D(name);
+		double hw = maul ? 9.5 : 8.5, hh = maul ? 5.5 : 4.5, hd = maul ? 5.0 : 4.5, hy = 11;
+		Paint trim = metalP(GOLD), body = maul ? rockP(new int[]{0x1a1010, 0x2a1818, 0x3a2020, 0x4a2a24, 0x5a3428}, MAGMA_P) : metalP(head);
+		m.box(8, -5, 1.6, hy + 1 + 5, 1.6, woodP(handle));
+		m.box(8, -3.5, 1.85, 4.5, 1.85, gripP(LEATHER_P));
+		m.box(8, -5.75, 2.3, 1.25, 2.3, trim);
+		m.box(8, hy - 1.25, 2.3, 1.5, 2.3, trim);
+		m.box(8, hy, hw, hh, hd, body);
+		m.box(8 - hw / 2 + 1.1, hy - 0.25, 1.0, hh + 0.5, hd + 0.5, trim);
+		m.box(8 + hw / 2 - 1.1, hy - 0.25, 1.0, hh + 0.5, hd + 0.5, trim);
+		m.box(8 - hw / 2 - 0.2, hy + 0.6, 0.6, hh - 1.2, hd - 1.2, metalP(maul ? SHADOW_STEEL : head));
+		m.box(8 + hw / 2 + 0.2, hy + 0.6, 0.6, hh - 1.2, hd - 1.2, metalP(maul ? SHADOW_STEEL : head));
+		m.box(8, hy + hh / 2 - 1, 2.0, 2.0, hd + 0.4, gemP(maul ? MAGMA_P : gem)).light(15);
+		if (maul) {
+			m.diamond(8 - hw / 2 - 0.9, hy + hh / 2, 2.4, 1.8, metalP(SHADOW_STEEL));
+			m.diamond(8 + hw / 2 + 0.9, hy + hh / 2, 2.4, 1.8, metalP(SHADOW_STEEL));
+			m.diamond(8, hy + hh, 2.2, 2.0, metalP(SHADOW_STEEL));
+		} else {
+			m.diamond(8, hy + hh, 2.6, 1.6, crystalP(gem)).light(12);
+		}
+		return m;
+	}
+
+	static Model3D spear3d(String name, int[] head, int[] trim, int[] shaft, boolean thunder) {
+		Model3D m = new Model3D(name);
+		Paint metal = metalP(trim);
+		m.box(8, -7, 1.25, 27, 1.25, woodP(shaft));
+		m.box(8, -2.75, 1.5, 5.5, 1.5, gripP(LEATHER_P));
+		m.box(8, 3.0, 1.55, 0.6, 1.55, metal);
+		m.box(8, -3.4, 1.55, 0.6, 1.55, metal);
+		m.box(8, -7.75, 1.7, 1.0, 1.7, metal);
+		m.diamond(8, -7.9, 1.6, 1.2, metal);
+		m.box(8, 19.0, 1.9, 2.25, 1.9, metal);
+		if (thunder) {
+			m.box(8, 21.0, 3.6, 4.6, 0.75, bladeP(head)).light(6);
+			m.box(8, 20.75, 0.75, 5.4, 1.25, ridgeP(head, head, true)).light(6);
+			m.diamond(8, 25.6, 3.6, 0.7, tipP(head)).light(6);
+			Paint bolt = glowP(new int[]{0xd1a21f, 0xffe066, 0xfff4b8, 0xffffff});
+			for (int s = -1; s <= 1; s += 2) {
+				m.beam(8 + s * 1.0, 20.3, 8 + s * 3.2, 22.0, 0.75, 0.6, bolt).light(15);
+				m.beam(8 + s * 3.2, 22.0, 8 + s * 2.5, 23.6, 0.6, 0.62, bolt).light(15);
+			}
+		} else {
+			m.box(8, 20.75, 2.2, 5.5, 0.7, crystalP(head)).light(8);
+			m.diamond(8, 26.25, 2.2, 0.65, crystalP(head)).light(8);
+			m.box(8, 20.4, 5.5, 0.8, 0.9, metal);
+			m.diamond(8 - 2.9, 20.8, 1.4, 1.0, gemP(head)).light(15);
+			m.diamond(8 + 2.9, 20.8, 1.4, 1.0, gemP(head)).light(15);
+		}
+		return m;
+	}
+
+	static Model3D staff3d(String name, int[] wood, int[] gem, int[] trim, int style) {
+		Model3D m = new Model3D(name);
+		Paint metal = metalP(trim);
+		Paint shaft = style == 1 ? boneP(wood) : style == 2 ? metalP(wood) : woodP(wood);
+		m.box(8, -6.5, 1.5, 20.5, 1.5, shaft);
+		m.box(8, -7.1, 1.8, 0.75, 1.8, metal);
+		m.box(8, 0.6, 1.75, 0.6, 1.75, metal);
+		m.box(8, 7.6, 1.75, 0.6, 1.75, metal);
+		if (style != 1) m.box(8, -2.5, 1.7, 3.5, 1.7, gripP(LEATHER_P));
+		m.box(8, 13.25, 2.6, 1.5, 2.6, metal);
+		Paint prong = style == 1 ? boneP(wood) : style == 2 ? metalP(SHADOW_STEEL) : metal;
+		m.beam(7.0, 14.2, 5.5, 18.8, 0.85, 0.85, prong);
+		m.beam(9.0, 14.2, 10.5, 18.8, 0.85, 0.85, prong);
+		m.add(new Part(7.6, 14.5, 9.7, 8.4, 18.3, 10.5, prong));
+		m.add(new Part(7.6, 14.5, 5.5, 8.4, 18.3, 6.3, prong));
+		if (style == 2) {
+			m.box(8, 15.0, 3.6, 3.6, 3.6, rockP(new int[]{0x1a1010, 0x2a1818, 0x3a2020, 0x4a2a24, 0x5a3428}, MAGMA_P));
+			m.diamond(8, 16.8, 4.6, 2.4, glowP(MAGMA_P)).light(15);
+		} else {
+			m.box(8, 15.0, 3.8, 3.8, 3.8, gemP(gem)).light(15);
+			m.diamond(8, 16.9, 5.0, 3.1, gemP(gem)).light(15);
+		}
+		if (style == 1) { // little horns on the bone scepter
+			m.beam(5.6, 18.6, 4.6, 20.0, 0.6, 0.6, boneP(wood));
+			m.beam(10.4, 18.6, 11.4, 20.0, 0.6, 0.6, boneP(wood));
+		}
+		return m;
+	}
+
+	static Model3D axe3d(String name, int[] head, int[] handle, int[] trim, boolean dbl) {
+		Model3D m = new Model3D(name);
+		Paint metal = metalP(trim);
+		m.box(8, -4.75, 1.5, 19.25, 1.5, woodP(handle));
+		m.box(8, -5.25, 1.9, 0.75, 1.9, metal);
+		m.box(8, -3.25, 1.75, 3.0, 1.75, gripP(LEATHER_P));
+		m.box(8, 10.25, 2.6, 4.0, 2.2, metal);
+		m.box(8, 14.25, 1.9, 0.75, 1.9, metal);
+		axeBlade(m, -1, head);
+		if (dbl) axeBlade(m, 1, head);
+		else m.diamond(10.4, 12.25, 2.2, 1.2, metal);
+		return m;
+	}
+
+	static void axeBlade(Model3D m, int side, int[] head) {
+		Paint body = crystalline(head) ? crystalP(head) : metalP(head);
+		int light = crystalline(head) ? 6 : 0;
+		m.box(8 + side * 3.05, 10.25, 3.7, 4.0, 0.9, body).light(light);
+		m.beam(8 + side * 1.3, 13.9, 8 + side * 5.4, 15.7, 1.4, 0.85, body).light(light);
+		m.beam(8 + side * 1.3, 10.6, 8 + side * 5.4, 8.8, 1.4, 0.85, body).light(light);
+		m.box(8 + side * 5.55, 8.3, 1.1, 7.8, 0.55, tipP(head)).light(light);
+	}
+
+	static Model3D pick3d(String name, int[] head, int[] handle, int[] trim, boolean big) {
+		Model3D m = new Model3D(name);
+		Paint metal = metalP(trim);
+		Paint body = crystalline(head) ? crystalP(head) : metalP(head);
+		int light = crystalline(head) ? 6 : 0;
+		double r = big ? 9.5 : 8.5, cy = 14.4 - r;
+		m.box(8, -4.75, 1.5, 18.5, 1.5, woodP(handle));
+		m.box(8, -5.25, 1.9, 0.75, 1.9, metal);
+		m.box(8, -3.25, 1.75, 3.0, 1.75, gripP(LEATHER_P));
+		m.box(8, 11.75, 2.6, 3.0, 2.2, metal);
+		m.arc(8, cy, r, 28, 90, 6, 1.2, big ? 3.2 : 2.8, 1.6, body, light);
+		m.arc(8, cy, r, 90, 152, 6, big ? 3.2 : 2.8, 1.2, 1.62, body, light);
+		double a0 = Math.toRadians(28), a1 = Math.toRadians(152);
+		m.diamond(8 + Math.cos(a0) * r, cy + Math.sin(a0) * r, 1.3, 1.2, tipP(head)).light(light);
+		m.diamond(8 + Math.cos(a1) * r, cy + Math.sin(a1) * r, 1.3, 1.2, tipP(head)).light(light);
+		if (big) m.box(8, 13.0, 3.4, 2.2, 2.6, metal);
+		return m;
+	}
+
+	static Model3D shovel3d(String name, int[] head, int[] handle, int[] trim) {
+		Model3D m = new Model3D(name);
+		Paint metal = metalP(trim), body = crystalP(head);
+		m.box(8, -4.75, 1.5, 15, 1.5, woodP(handle));
+		m.box(8, -5.25, 1.9, 0.75, 1.9, metal);
+		m.box(8, -3.25, 1.75, 3.0, 1.75, gripP(LEATHER_P));
+		m.box(8, 9.25, 2.0, 2.25, 1.75, metal);
+		m.box(8, 10.75, 4.5, 4.5, 0.75, body).light(6);
+		m.box(8, 10.5, 4.8, 0.6, 0.95, metal);
+		m.diamond(8, 15.25, 4.5, 0.7, body).light(6);
+		m.box(8, 10.76, 0.8, 5.0, 1.05, ridgeP(head, head, false)).light(6);
+		return m;
+	}
+
+	static Model3D bow3d(String name, int[] wood, int[] gem, int pull) {
+		Model3D m = new Model3D(name);
+		m.display = "bow";
+		double cx = 12.22, cy = 8, r = 9.22, spread = 57.8;
+		Paint limb = t -> {
+			if (t.flat() && Math.floorMod((int) Math.floor(t.y * TEXELS), 5) == 0 && t.i == t.w / 2) return gem[4];
+			return woodP(wood).color(t);
+		};
+		m.arc(cx, cy, r, 180 - spread, 180, 7, 1.1, 2.1, 1.5, limb, 0);
+		m.arc(cx, cy, r, 180, 180 + spread, 7, 2.1, 1.1, 1.53, limb, 0);
+		m.box(3.0, 6.0, 1.9, 4.0, 1.8, gripP(LEATHER_P));
+		m.box(3.0, 9.6, 2.2, 0.6, 2.0, metalP(GOLD));
+		m.box(3.0, 5.8, 2.2, 0.6, 2.0, metalP(GOLD));
+		m.diamond(3.0, 8.0, 1.6, 2.1, gemP(gem)).light(15);
+		double sx = cx + Math.cos(Math.toRadians(180 - spread)) * r, sy = Math.sin(Math.toRadians(spread)) * r;
+		m.diamond(sx, cy + sy, 1.6, 1.0, crystalP(gem)).light(15);
+		m.diamond(sx, cy - sy, 1.6, 1.0, crystalP(gem)).light(15);
+		double[] pullOff = {0, 1.25, 2.25, 3.25};
+		if (pull == 0) m.box(sx, cy - sy, 0.25, 2 * sy, 0.25, stringP());
+		else {
+			double nx = sx + pullOff[pull];
+			m.beam(sx, cy + sy, nx, cy, 0.25, 0.25, stringP());
+			m.beam(nx, cy, sx, cy - sy, 0.25, 0.25, stringP());
+			m.add(new Part(-0.6, cy - 0.15, 7.85, nx, cy + 0.15, 8.15, woodP(WOOD)));
+			m.diamond(-0.6, cy, 1.7, 0.4, metalP(IRON_P));
+			m.add(new Part(nx - 2.4, cy - 0.65, 7.95, nx - 0.3, cy + 0.65, 8.05, featherP(gem)));
+		}
+		return m;
+	}
+
+	static void weapons3d() throws IOException {
+		for (Model3D m : models3d()) save(m.paint(), "item/" + m.name + "_3d");
+	}
+
 	// ================================================================ helpers
 	static BufferedImage img(int w, int h) {
 		return new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
@@ -2313,7 +3357,13 @@ public class TextureGen {
 				"{\n  \"animation\": {\n    \"frametime\": " + frametime + "\n  }\n}\n");
 	}
 
+	/** Bevel shading plus a dark outline around the sprite. */
 	static void outline(BufferedImage img, int color) {
+		bevel(img, 1.0);
+		outlineRaw(img, color);
+	}
+
+	static void outlineRaw(BufferedImage img, int color) {
 		int w = img.getWidth(), h = img.getHeight();
 		List<int[]> pts = new ArrayList<>();
 		for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
@@ -2387,6 +3437,91 @@ public class TextureGen {
 	}
 
 	static int darken(int c, double f) { return shadeColor(c, f); }
+
+	/** Smooth palette ramp, t in 0..1 (dark .. light). */
+	static int ramp(int[] pal, double t) {
+		double f = clamp01(t) * (pal.length - 1);
+		int i = (int) Math.floor(f);
+		if (i >= pal.length - 1) return pal[pal.length - 1] & 0xFFFFFF;
+		return lerp(pal[i], pal[i + 1], f - i);
+	}
+
+	/** Palette ramp snapped to half steps between the palette colours (keeps the pixel-art look crisp). */
+	static int rampQ(int[] pal, double t) {
+		int steps = (pal.length - 1) * 2;
+		return ramp(pal, Math.round(clamp01(t) * steps) / (double) steps);
+	}
+
+	/** Deterministic per-pixel noise in 0..1. */
+	static double hash(int x, int y, long seed) {
+		long h = x * 374761393L + y * 668265263L + seed * 2147483647L;
+		h = (h ^ (h >>> 13)) * 1274126177L;
+		h ^= h >>> 16;
+		return (h & 0xFFFFFF) / (double) 0x1000000;
+	}
+
+	static double hash3(double x, double y, double z) {
+		return hash((int) Math.floor(x * TEXELS + 1000), (int) Math.floor(y * TEXELS + 1000) * 31 + (int) Math.floor(z * TEXELS + 1000), 99);
+	}
+
+	/** Outline that takes its colour from the neighbouring pixel: darker below/right, a bit softer above/left. */
+	static void outlineSel(BufferedImage img, double dark) {
+		int w = img.getWidth(), h = img.getHeight();
+		BufferedImage src = copy(img);
+		for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
+			if ((src.getRGB(x, y) >>> 24) != 0) continue;
+			int best = -1;
+			double f = dark;
+			int[][] dirs = {{-1, 0}, {0, -1}, {1, 0}, {0, 1}};
+			for (int k = 0; k < 4; k++) {
+				int nx = x + dirs[k][0], ny = y + dirs[k][1];
+				if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+				int c = src.getRGB(nx, ny);
+				if ((c >>> 24) < 200) continue;
+				best = c & 0xFFFFFF;
+				f = k < 2 ? dark * 0.8 : dark; // shape lies up/left -> this is the shadow side
+			}
+			if (best >= 0) img.setRGB(x, y, argb(lerp(shadeColor(best, f), 0x0a0612, 0.35)));
+		}
+	}
+
+	/** Gives a flat sprite a rounded, top-left lit bevel derived from its silhouette. */
+	static void bevel(BufferedImage img, double strength) {
+		int w = img.getWidth(), h = img.getHeight();
+		double[][] d = new double[w][h];
+		for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
+			if ((img.getRGB(x, y) >>> 24) == 0) continue;
+			double best = 4;
+			for (int yy = Math.max(0, y - 4); yy <= Math.min(h - 1, y + 4); yy++)
+				for (int xx = Math.max(0, x - 4); xx <= Math.min(w - 1, x + 4); xx++)
+					if ((img.getRGB(xx, yy) >>> 24) == 0) best = Math.min(best, Math.hypot(xx - x, yy - y));
+			best = Math.min(best, Math.min(Math.min(x + 1, y + 1), Math.min(w - x, h - y)));
+			d[x][y] = Math.min(best, 3);
+		}
+		BufferedImage src = copy(img);
+		for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) {
+			int c = src.getRGB(x, y);
+			if ((c >>> 24) == 0) continue;
+			double gx = (dAt(d, x + 1, y) - dAt(d, x - 1, y)) / 2, gy = (dAt(d, x, y + 1) - dAt(d, x, y - 1)) / 2;
+			double lam = Math.max(-1, Math.min(1, (gx + gy) * 0.7071)) * strength;
+			int rgb = c & 0xFFFFFF;
+			rgb = lam > 0 ? lerp(rgb, 0xffffff, lam * 0.32) : shadeColor(rgb, 1 + lam * 0.3);
+			rgb = shadeColor(rgb, 0.96 + hash(x, y, 5) * 0.08);
+			img.setRGB(x, y, (c & 0xFF000000) | rgb);
+		}
+	}
+
+	static double dAt(double[][] d, int x, int y) {
+		if (x < 0 || y < 0 || x >= d.length || y >= d[0].length) return 0;
+		return d[x][y];
+	}
+
+	/** Emboss light for a height field (tileable): positive where the surface faces the top-left. */
+	static double emboss(double[][] hf, int x, int y) {
+		int w = hf.length, h = hf[0].length;
+		double a = hf[(x - 1 + w) % w][(y - 1 + h) % h], b = hf[(x + 1) % w][(y + 1) % h];
+		return a - b;
+	}
 
 	static int shadeColor(int c, double f) {
 		int r = clamp((int) (((c >> 16) & 255) * f), 0, 255);

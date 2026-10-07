@@ -1,1 +1,1 @@
-{"model":{"type":"minecraft:model","model":"glowcube_realms:item/star_hammer"}}
+{"model":{"type":"minecraft:select","property":"minecraft:display_context","cases":[{"when":["gui","ground","fixed","on_shelf"],"model":{"type":"minecraft:model","model":"glowcube_realms:item/star_hammer"}}],"fallback":{"type":"minecraft:model","model":"glowcube_realms:item/star_hammer_3d"}}}
