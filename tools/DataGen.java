@@ -1390,7 +1390,7 @@ public class DataGen {
 			sculkBiome("echo_forest", q(NS + ":giant_echo_trees") + "," + q(NS + ":echo_trees_dense") + "," + q(NS + ":echo_blooms") + "," + q("minecraft:sculk_vein"));
 			sculkBiome("sculk_spires", q(NS + ":echo_spikes") + "," + q("minecraft:sculk_patch_deep_dark") + "," + q("minecraft:sculk_vein"));
 			structure("sculk_sanctuary", "echo_warden", "#" + NS + ":has_sculk_sanctuary", "underground_decoration", -40);
-			structureSet("sculk_sanctuary", 14, 5, 2468013);
+			structureSet("sculk_sanctuary", 10, 4, 2468013);
 			structureSet("frozen_crypt", 24, 9, 8812345);
 		}
 

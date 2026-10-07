@@ -31,7 +31,8 @@ public class ArenaPiece extends StructurePiece {
 
 	public ArenaPiece(String kind, BlockPos center) {
 		super(ModWorldgen.ARENA_PIECE, 0, new BoundingBox(center.getX() - R - 3, center.getY() - 24, center.getZ() - R - 3,
-				center.getX() + R + 3, center.getY() + 26, center.getZ() + R + 3));
+				// the sculk sanctuary reaches up to the surface with its shaft and marker
+				center.getX() + R + 3, center.getY() + (kind.equals("echo_warden") ? 380 : 26), center.getZ() + R + 3));
 		this.kind = kind;
 		this.center = center;
 	}
@@ -368,17 +369,22 @@ public class ArenaPiece extends StructurePiece {
 
 	// ------------------------------------------------------------------ Sculk Sanctuary (Deep Dark)
 	private void buildSculkSanctuary(WorldGenLevel level, BoundingBox bb, RandomSource random) {
-		int r = 9;
+		int r = 13;
 		BlockState tiles = Blocks.DEEPSLATE_TILES.defaultBlockState();
 		BlockState bricks = Blocks.DEEPSLATE_BRICKS.defaultBlockState();
 		BlockState sculk = Blocks.SCULK.defaultBlockState();
 		BlockState frame = Blocks.REINFORCED_DEEPSLATE.defaultBlockState();
 		for (int dx = -r - 1; dx <= r + 1; dx++) for (int dz = -r - 1; dz <= r + 1; dz++) {
 			double d = Math.hypot(dx, dz);
-			for (int dy = -2; dy <= 10; dy++) {
+			for (int dy = -2; dy <= 14; dy++) {
 				double d3 = Math.sqrt(dx * dx + dz * dz + (dy * 1.15) * (dy * 1.15));
 				if (dy > 0 && d3 < r) this.set(level, bb, dx, dy, dz, Blocks.AIR.defaultBlockState());
-				else if (dy > 0 && d3 < r + 1.3) this.set(level, bb, dx, dy, dz, noise(dx * 7 + dy, dz * 5) > 0.6 ? sculk : bricks);
+				else if (dy > 0 && d3 < r + 1.3) {
+					// glowing echo crystal ribs make the dome visible from far away in the dark caves
+					boolean rib = Math.abs(dx) <= 0 || Math.abs(dz) <= 0 || Math.abs(Math.abs(dx) - Math.abs(dz)) <= 0;
+					this.set(level, bb, dx, dy, dz, rib ? net.glowcube.realms.registry.ModBlocks.ECHO_CRYSTAL_BLOCK.defaultBlockState()
+							: noise(dx * 7 + dy, dz * 5) > 0.6 ? sculk : bricks);
+				}
 			}
 			if (d > r + 1) continue;
 			this.set(level, bb, dx, 0, dz, d < 2 ? Blocks.CHISELED_DEEPSLATE.defaultBlockState() : noise(dx, dz) > 0.55 ? sculk : tiles);
@@ -389,7 +395,7 @@ public class ArenaPiece extends StructurePiece {
 			for (int t = r - 1; t <= r + 22; t++) {
 				for (int w = -1; w <= 1; w++) for (int dy = 1; dy <= 3; dy++) this.set(level, bb, sign * t, dy, w, Blocks.AIR.defaultBlockState());
 				this.set(level, bb, sign * t, 0, 0, tiles);
-				if (t % 6 == 0) this.set(level, bb, sign * t, 3, 1, Blocks.SOUL_LANTERN.defaultBlockState());
+				if (t % 4 == 0) this.set(level, bb, sign * t, 3, 1, Blocks.SOUL_LANTERN.defaultBlockState());
 			}
 		}
 		// the sculk gate: reinforced deepslate frame with the keyhole in the middle of the bottom row
@@ -410,6 +416,48 @@ public class ArenaPiece extends StructurePiece {
 		this.set(level, bb, 1, 1, 4, Blocks.SCULK_SENSOR.defaultBlockState());
 		this.set(level, bb, 0, 0, 3, Blocks.CHISELED_DEEPSLATE.defaultBlockState());
 		this.chest(level, bb, random, 0, 1, 3, "sculk_reliquary");
+		this.sanctuaryBeacon(level, bb);
+	}
+
+	/**
+	 * Makes the sanctuary findable: a lit shaft with a ladder from the dome up to the surface and a glowing
+	 * sculk monument around its top. Only built on dry land (a shaft under the sea would flood).
+	 */
+	private void sanctuaryBeacon(WorldGenLevel level, BoundingBox bb) {
+		int sx = this.center.getX(), sz = this.center.getZ() + 10;
+		if (sx < bb.minX() || sx > bb.maxX() || sz < bb.minZ() || sz > bb.maxZ()) return;
+		int surface = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.WORLD_SURFACE_WG, sx, sz);
+		int floor = level.getHeight(net.minecraft.world.level.levelgen.Heightmap.Types.OCEAN_FLOOR_WG, sx, sz);
+		int top = surface - this.center.getY();
+		if (surface != floor || top < 14) return;
+		BlockState bricks = Blocks.DEEPSLATE_BRICKS.defaultBlockState(), glow = ModBlocks.ECHO_CRYSTAL_BLOCK.defaultBlockState();
+		BlockState frame = Blocks.REINFORCED_DEEPSLATE.defaultBlockState(), sculk = Blocks.SCULK.defaultBlockState();
+		BlockState ladder = Blocks.LADDER.defaultBlockState().setValue(net.minecraft.world.level.block.LadderBlock.FACING, net.minecraft.core.Direction.NORTH);
+		for (int dy = 1; dy < top; dy++) {
+			for (int dx = -2; dx <= 2; dx++) for (int dz = 8; dz <= 12; dz++) {
+				boolean ring = Math.abs(dx) == 2 || dz == 8 || dz == 12;
+				if (!ring) this.set(level, bb, dx, dy, dz, Blocks.AIR.defaultBlockState());
+				else if (dy <= 3 && dz == 8) this.set(level, bb, dx, dy, dz, Blocks.AIR.defaultBlockState()); // doorway into the dome
+				else this.set(level, bb, dx, dy, dz, dy % 6 == 0 && dx == 0 ? glow : bricks);
+			}
+			this.set(level, bb, 0, dy, 11, ladder);
+		}
+		// monument on the surface
+		for (int dx = -5; dx <= 5; dx++) for (int dz = 5; dz <= 15; dz++) {
+			double d = Math.hypot(dx, dz - 10);
+			if (d > 5.5 || (Math.abs(dx) <= 2 && dz >= 8 && dz <= 12)) continue;
+			this.set(level, bb, dx, top - 1, dz, d < 3.5 ? Blocks.POLISHED_DEEPSLATE.defaultBlockState() : noise(dx, dz) > 0.4 ? sculk : Blocks.DEEPSLATE_TILES.defaultBlockState());
+			for (int dy = 0; dy <= 8; dy++) this.set(level, bb, dx, top + dy, dz, Blocks.AIR.defaultBlockState());
+		}
+		for (int[] p : new int[][]{{-3, 7}, {3, 7}, {-3, 13}, {3, 13}}) {
+			for (int dy = 0; dy <= 5; dy++) this.set(level, bb, p[0], top + dy, p[1], frame);
+			this.set(level, bb, p[0], top + 6, p[1], Blocks.SOUL_LANTERN.defaultBlockState());
+		}
+		for (int dx = -3; dx <= 3; dx++) this.set(level, bb, dx, top + 5, 10, frame);
+		this.set(level, bb, 0, top + 6, 10, glow);
+		this.set(level, bb, 0, top + 7, 10, glow);
+		this.set(level, bb, 0, top + 8, 10, Blocks.SCULK_CATALYST.defaultBlockState());
+		for (int[] l : new int[][]{{-5, 10}, {5, 10}, {0, 5}, {0, 15}}) this.set(level, bb, l[0], top, l[1], Blocks.SOUL_LANTERN.defaultBlockState());
 	}
 
 	// ------------------------------------------------------------------ Glowcube Shrine (Overworld)
