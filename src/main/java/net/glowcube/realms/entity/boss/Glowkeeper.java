@@ -85,9 +85,10 @@ public class Glowkeeper extends RealmBoss {
 		Vec3 anchor = target != null ? target.position() : (this.home != null ? Vec3.atCenterOf(this.home) : this.position());
 		this.orbitAngle += this.getPhase() == 3 ? 0.035 : 0.02;
 		int atk = this.getCurrentAttack();
-		double radius = atk == NOVA ? 0.0 : 6.0;
+		// stays within sword reach: close orbit, feet about at the player's head height at most
+		double radius = atk == NOVA ? 0.0 : 3.0;
 		// lands during starfall and summoning so melee players get a window to hit it
-		double height = atk == NOVA ? 6.0 : (atk == STARFALL || atk == SUMMON || this.isRoaring()) ? 0.6 : 2.6 + Math.sin(this.tickCount * 0.05) * 0.8;
+		double height = atk == NOVA ? 2.8 : (atk == STARFALL || atk == SUMMON || this.isRoaring()) ? 0.2 : 0.7 + Math.sin(this.tickCount * 0.05) * 0.5;
 		Vec3 want = anchor.add(Math.cos(this.orbitAngle) * radius, height, Math.sin(this.orbitAngle) * radius);
 		Vec3 delta = want.subtract(this.position());
 		double speed = this.getCurrentAttack() == BEAM ? 0.02 : 0.06;

@@ -16,6 +16,12 @@ loom {
 		}
 		client {
 			vmArg "-Djavax.net.ssl.trustStoreType=Windows-ROOT"
+			if (project.hasProperty("shots")) {
+				vmArg "-Dglowcube.shots=1"
+				if (project.hasProperty("shotItems")) vmArg "-Dglowcube.shots.items=" + project.property("shotItems")
+				programArg "--quickPlaySingleplayer"
+				programArg project.property("shots")
+			}
 		}
 	}
 

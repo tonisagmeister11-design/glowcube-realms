@@ -75,8 +75,9 @@ public class TempestDrake extends RealmBoss {
 		if (atk == DIVE && this.attackTick > 14) return;
 		Vec3 anchor = target != null ? target.position() : (this.home != null ? Vec3.atCenterOf(this.home) : this.position());
 		this.angle += 0.03;
-		double height = this.isRoaring() || atk == FEATHERS ? 2.0 : 6.0;
-		this.hover(anchor, this.angle, 9.0, height, 0.07);
+		// low, close circles so melee players can reach it; it still swoops in with the dive
+		double height = this.isRoaring() || atk == FEATHERS ? 0.4 : 2.0;
+		this.hover(anchor, this.angle, 3.8, height, 0.07);
 		Vec3 v = this.getDeltaMovement();
 		if (v.horizontalDistanceSqr() > 1.0E-4) {
 			this.setYRot((float) (Math.atan2(v.z, v.x) * (180F / Math.PI)) - 90.0F);

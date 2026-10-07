@@ -130,6 +130,20 @@ public final class DevSelfTest {
 				}
 				return;
 			}
+			if (cmd.equals("reach")) {
+				// distance from the target's eyes to the boss hitbox (players hit up to 3 blocks)
+				for (net.minecraft.server.level.ServerLevel lvl : server.getAllLevels())
+					for (net.minecraft.world.entity.Entity e : lvl.getAllEntities())
+						if (e instanceof net.glowcube.realms.entity.boss.RealmBoss boss && boss.getTarget() != null) {
+							net.minecraft.world.phys.Vec3 eye = boss.getTarget().position().add(0, 1.62, 0); // as if a player stood there
+							net.minecraft.world.phys.AABB bb = boss.getBoundingBox();
+							double cx = Math.max(bb.minX, Math.min(eye.x, bb.maxX)), cy = Math.max(bb.minY, Math.min(eye.y, bb.maxY)), cz = Math.max(bb.minZ, Math.min(eye.z, bb.maxZ));
+							double d = eye.distanceTo(new net.minecraft.world.phys.Vec3(cx, cy, cz));
+							GlowcubeRealms.LOGGER.info("[SelfTest] reach {} -> {} blocks ({}), boss feet {} above target feet", boss.getType().toShortString(),
+									String.format("%.2f", d), d <= 3.0 ? "HITTABLE" : "too far", String.format("%.2f", boss.getY() - boss.getTarget().getY()));
+						}
+				return;
+			}
 			if (cmd.equals("trades")) {
 				// logs the offers of every realm trader
 				for (net.minecraft.server.level.ServerLevel lvl : server.getAllLevels())

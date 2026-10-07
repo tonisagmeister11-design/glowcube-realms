@@ -72,8 +72,8 @@ public class VoidHerald extends RealmBoss {
 		Vec3 anchor = target != null ? target.position() : (this.home != null ? Vec3.atCenterOf(this.home) : this.position());
 		this.angle += 0.025;
 		int atk = this.getCurrentAttack();
-		double height = atk == GRAVITY || this.isRoaring() ? 1.0 : 3.2;
-		this.hover(anchor, this.angle, atk == GRAVITY ? 0.0 : 6.5, height, 0.06);
+		double height = atk == GRAVITY || this.isRoaring() ? 0.3 : 1.0;
+		this.hover(anchor, this.angle, atk == GRAVITY ? 0.0 : 3.0, height, 0.06);
 		if (target != null) this.getLookControl().setLookAt(target, 30, 30);
 	}
 

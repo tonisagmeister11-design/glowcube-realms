@@ -65,6 +65,7 @@ public class GlowcubeRealmsClient implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
+		DevShots.init();
 		ModelLayerRegistry.registerModelLayer(GLOW_WISP, GlowWispModel::createLayer);
 		ModelLayerRegistry.registerModelLayer(CRYSTAL_GOLEM, CrystalGolemModel::createLayer);
 		ModelLayerRegistry.registerModelLayer(SHADE_CRAWLER, ShadeCrawlerModel::createLayer);
